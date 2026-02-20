@@ -1,0 +1,74 @@
+{
+  "name": "cityradar",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.7.0",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --port 3333 --open",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "preview-https": "serve dist",
+    "test": "vitest",
+    "test:e2e": "cypress open",
+    "test:unit": "vitest",
+    "typecheck": "vue-tsc --noEmit",
+    "up": "taze major -I",
+    "postinstall": "npx simple-git-hooks",
+    "sizecheck": "npx vite-bundle-visualizer"
+  },
+  "dependencies": {
+    "@tanstack/vue-query": "^5.92.9",
+    "@unhead/vue": "^2.1.4",
+    "@vueuse/core": "^14.2.1",
+    "geojson": "^0.5.0",
+    "maplibre-gl": "^5.18.0",
+    "mitt": "^3.0.1",
+    "nprogress": "^0.2.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.28",
+    "vue-maplibre-gl": "^5.6.1",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^7.4.3",
+    "@tailwindcss/vite": "^4.2.0",
+    "@types/node": "^24.10.13",
+    "@types/nprogress": "^0.2.3",
+    "@unocss/eslint-plugin": "^66.6.0",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "@vue-macros/volar": "^3.1.2",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
+    "eslint": "^9.39.3",
+    "eslint-plugin-format": "^1.4.0",
+    "lint-staged": "^16.2.7",
+    "simple-git-hooks": "^2.13.1",
+    "tailwindcss": "^4.2.0",
+    "taze": "^19.9.2",
+    "typescript": "^5.9.3",
+    "unplugin-auto-import": "^21.0.0",
+    "unplugin-vue-components": "^31.0.0",
+    "unplugin-vue-macros": "^2.14.5",
+    "unplugin-vue-router": "^0.19.2",
+    "vite": "^7.3.1",
+    "vite-bundle-visualizer": "^1.2.1",
+    "vite-plugin-inspect": "^11.3.3",
+    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-vue-devtools": "^8.0.6",
+    "vitest": "^4.0.18",
+    "vue-tsc": "^3.2.5"
+  },
+  "resolutions": {
+    "unplugin": "^2.2.2",
+    "vite": "^7.3.1",
+    "vite-plugin-inspect": "^11.3.3"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}
