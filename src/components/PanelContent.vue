@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { getStptConfig, getTransitApiConfig } from '../data/client'
-import { useStops, useStopsByDirection, useVehicles } from '../data/hooks'
+import { useStops, useStopsByDirection, useStopTimetables, useVehicles } from '../data/hooks'
 import { useMapStore } from '../state/mapStore'
 import LayerToggles from './LayerToggles.vue'
 
@@ -17,6 +17,8 @@ const { selectedRouteId, selectedStopId, selectedVehicleId, followSelectedVehicl
 const stopsQuery = useStops(selectedRouteId)
 const stopsByDirectionQuery = useStopsByDirection(selectedRouteId)
 const vehiclesQuery = useVehicles(selectedRouteId)
+type DirectionKey = 'tur' | 'retur'
+const activeDirection = ref<DirectionKey>('tur')
 
 const selectedStop = computed(() => stopsQuery.data.value?.find(s => s.id === selectedStopId.value) ?? null)
 const selectedVehicle = computed(
@@ -63,6 +65,79 @@ const dataSource = computed(() => {
   return { kind: 'mock' as const, detail: '' }
 })
 
+const stopsByDirectionData = computed(() => {
+  return stopsByDirectionQuery.data.value ?? { tur: [], retur: [] }
+})
+
+const activeDirectionStops = computed(() => {
+  return activeDirection.value === 'tur'
+    ? stopsByDirectionData.value.tur
+    : stopsByDirectionData.value.retur
+})
+
+const activeDirectionStopIds = computed(() => activeDirectionStops.value.map(stop => stop.id))
+const stopTimetablesQuery = useStopTimetables(activeDirectionStopIds, selectedRouteId)
+
+const firstActiveStop = computed(() => activeDirectionStops.value[0] ?? null)
+const lastActiveStop = computed(() => {
+  if (activeDirectionStops.value.length < 2)
+    return null
+  return activeDirectionStops.value[activeDirectionStops.value.length - 1] ?? null
+})
+const middleActiveStops = computed(() => {
+  if (activeDirectionStops.value.length <= 2)
+    return []
+  return activeDirectionStops.value.slice(1, -1)
+})
+
+function timeForStop(stopId: string) {
+  return stopTimetablesQuery.data.value?.[stopId] ?? null
+}
+
+function displayTimeForStop(stopId: string) {
+  return timeForStop(stopId)?.time ?? '--:--'
+}
+
+function displayMinutesForStop(stopId: string) {
+  const minutes = timeForStop(stopId)?.minutes
+  if (minutes == null)
+    return null
+  return minutes <= 0 ? 'due' : `${minutes} min`
+}
+
+const activeDirectionDestination = computed(() => {
+  const firstStopId = firstActiveStop.value?.id
+  if (!firstStopId)
+    return null
+  return timeForStop(firstStopId)?.destination ?? null
+})
+
+const activeDirectionPrimaryTone = computed(() => {
+  return activeDirection.value === 'tur'
+    ? 'badge-info'
+    : 'badge-secondary'
+})
+
+function stopMarkerClass(stopId: string) {
+  if (selectedStopId.value === stopId) {
+    return activeDirection.value === 'tur'
+      ? 'border-info bg-info/20'
+      : 'border-secondary bg-secondary/20'
+  }
+
+  return 'border-base-300 bg-base-100'
+}
+
+function pickDefaultDirection() {
+  const turCount = stopsByDirectionData.value.tur.length
+  const returCount = stopsByDirectionData.value.retur.length
+  if (turCount > 0)
+    return 'tur' as const
+  if (returCount > 0)
+    return 'retur' as const
+  return 'tur' as const
+}
+
 function selectorEscape(value: string) {
   return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
     ? CSS.escape(value)
@@ -75,6 +150,13 @@ watch(
     if (!stopId)
       return
 
+    const inTur = stopsByDirectionData.value.tur.some(stop => stop.id === stopId)
+    const inRetur = stopsByDirectionData.value.retur.some(stop => stop.id === stopId)
+    if (inTur)
+      activeDirection.value = 'tur'
+    else if (inRetur)
+      activeDirection.value = 'retur'
+
     stationsExpanded.value = true
 
     await nextTick()
@@ -82,6 +164,16 @@ watch(
     const el = document.querySelector<HTMLButtonElement>(selector)
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   },
+)
+
+watch(
+  [selectedRouteId, () => stopsByDirectionQuery.data.value],
+  ([routeId]) => {
+    if (!routeId)
+      return
+    activeDirection.value = pickDefaultDirection()
+  },
+  { immediate: true },
 )
 
 watch(
@@ -154,7 +246,7 @@ watch(
     </div>
 
     <div v-if="!selectedRouteId" role="alert" class="alert alert-info alert-soft text-sm">
-      Pick a route to start tracking live vehicles.
+      Pick a route to filter live vehicles for that line.
     </div>
 
     <div v-else-if="selectedStop" class="rounded-box border border-base-300 bg-base-200 p-3">
@@ -206,53 +298,113 @@ watch(
           <span class="text-xs">Failed to load stations by direction.</span>
         </div>
 
-        <div v-else class="space-y-3">
-          <div class="rounded-box border border-base-300 bg-base-100 p-2">
-            <div class="mb-1 flex items-center justify-between text-xs">
-              <span class="badge badge-info badge-sm">tur</span>
-              <span class="text-base-content/70">{{ stopsByDirectionQuery.data.value?.tur.length ?? 0 }}</span>
-            </div>
-            <ul class="list max-h-48 overflow-auto">
-              <li
-                v-for="(stop, idx) in (stopsByDirectionQuery.data.value?.tur ?? [])" :key="`tur-${stop.id}-${idx}`"
-                class="list-row p-0"
-              >
-                <button
-                  type="button" class="btn btn-xs h-auto w-full justify-start rounded-none px-2 py-1 text-left"
-                  :class="selectedStopId === stop.id ? 'btn-info btn-soft' : 'btn-ghost'" :data-stop-id="stop.id"
-                  @click="store.selectStop(stop.id)"
-                >
-                  {{ idx + 1 }}. {{ stop.name }}
-                </button>
-              </li>
-            </ul>
+        <div v-else class="space-y-2">
+          <div role="tablist" class="tabs tabs-box w-full">
+            <button
+              role="tab" type="button" class="tab flex-1"
+              :class="activeDirection === 'tur' ? 'tab-active' : ''" @click="activeDirection = 'tur'"
+            >
+              tur
+            </button>
+            <button
+              role="tab" type="button" class="tab flex-1"
+              :class="activeDirection === 'retur' ? 'tab-active' : ''" @click="activeDirection = 'retur'"
+            >
+              retur
+            </button>
           </div>
 
-          <div class="rounded-box border border-base-300 bg-base-100 p-2">
-            <div class="mb-1 flex items-center justify-between text-xs">
-              <span class="badge badge-secondary badge-sm">retur</span>
-              <span class="text-base-content/70">{{ stopsByDirectionQuery.data.value?.retur.length ?? 0 }}</span>
+          <div class="rounded-box border border-base-300 bg-base-100 p-2.5">
+            <div v-if="activeDirectionStops.length === 0" class="text-sm text-base-content/70">
+              No stations available for this direction.
             </div>
-            <ul class="list max-h-48 overflow-auto">
-              <li
-                v-for="(stop, idx) in (stopsByDirectionQuery.data.value?.retur ?? [])"
-                :key="`retur-${stop.id}-${idx}`" class="list-row p-0"
-              >
+
+            <div v-else class="relative max-h-84 overflow-auto">
+              <div class="pointer-events-none absolute left-2 top-3 bottom-3 w-px bg-base-300 opacity-70" />
+
+              <div v-if="firstActiveStop" class="relative mb-0.5">
+                <span
+                  class="absolute left-px top-3 h-2.5 w-2.5 rounded-full border-2"
+                  :class="stopMarkerClass(firstActiveStop.id)"
+                />
                 <button
-                  type="button" class="btn btn-xs h-auto w-full justify-start rounded-none px-2 py-1 text-left"
-                  :class="selectedStopId === stop.id ? 'btn-secondary btn-soft' : 'btn-ghost'" :data-stop-id="stop.id"
-                  @click="store.selectStop(stop.id)"
+                  type="button"
+                  class="w-full rounded-box py-1 pl-7 pr-2 text-left hover:bg-base-200"
+                  :class="selectedStopId === firstActiveStop.id ? 'bg-base-200/80' : ''"
+                  :data-stop-id="firstActiveStop.id" @click="store.selectStop(firstActiveStop.id)"
                 >
-                  {{ idx + 1 }}. {{ stop.name }}
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <div class="truncate text-[15px] font-semibold text-base-content">
+                        {{ firstActiveStop.name }}
+                      </div>
+                      <div class="truncate text-xs text-base-content/70">
+                        → {{ activeDirectionDestination ?? (activeDirection === 'tur' ? 'Tur direction' : 'Retur direction') }}
+                      </div>
+                      <div class="text-[11px] text-base-content/60">
+                        {{ displayMinutesForStop(firstActiveStop.id) ? `Next in ${displayMinutesForStop(firstActiveStop.id)}` : 'Live schedule unavailable' }}
+                      </div>
+                    </div>
+                    <span class="shrink-0 font-mono text-sm font-medium text-base-content/70">{{ displayTimeForStop(firstActiveStop.id) }}</span>
+                  </div>
                 </button>
-              </li>
-            </ul>
+              </div>
+
+              <ul v-if="middleActiveStops.length" class="space-y-0.5">
+                <li v-for="(stop, idx) in middleActiveStops" :key="`${activeDirection}-mid-${stop.id}-${idx}`" class="relative">
+                  <span class="absolute left-px top-3 h-2.5 w-2.5 rounded-full border-2" :class="stopMarkerClass(stop.id)" />
+                  <button
+                    type="button"
+                    class="w-full rounded-box py-0.5 pl-7 pr-2 text-left hover:bg-base-200"
+                    :class="selectedStopId === stop.id ? 'bg-base-200/80' : ''" :data-stop-id="stop.id"
+                    @click="store.selectStop(stop.id)"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <span
+                          class="badge badge-xs shrink-0 px-1.5 font-mono font-medium"
+                          :class="displayTimeForStop(stop.id) === '--:--' ? 'badge-ghost' : `${activeDirectionPrimaryTone} badge-soft`"
+                        >
+                          {{ displayTimeForStop(stop.id) }}
+                        </span>
+                        <span class="truncate text-[13px] text-base-content">
+                          {{ stop.name }}
+                        </span>
+                      </div>
+                      <span class="font-mono text-[11px] text-base-content/50">{{ displayMinutesForStop(stop.id) ?? '—' }}</span>
+                    </div>
+                  </button>
+                </li>
+              </ul>
+
+              <div v-if="lastActiveStop" class="relative mt-0.5">
+                <span
+                  class="absolute left-px top-3 h-2.5 w-2.5 rounded-full border-2"
+                  :class="stopMarkerClass(lastActiveStop.id)"
+                />
+                <button
+                  type="button"
+                  class="w-full rounded-box py-1 pl-7 pr-2 text-left hover:bg-base-200"
+                  :class="selectedStopId === lastActiveStop.id ? 'bg-base-200/80' : ''"
+                  :data-stop-id="lastActiveStop.id" @click="store.selectStop(lastActiveStop.id)"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="truncate text-[15px] font-semibold text-base-content">
+                      {{ lastActiveStop.name }}
+                    </div>
+                    <span class="shrink-0 font-mono text-sm font-medium text-base-content/70">
+                      {{ displayTimeForStop(lastActiveStop.id) }}
+                    </span>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="rounded-box border border-base-300 bg-base-200 p-3 text-xs text-base-content/70">
+    <div v-if="false" class="rounded-box border border-base-300 bg-base-200 p-3 text-xs text-base-content/70">
       <div class="flex items-center justify-between gap-2">
         <div class="font-semibold text-base-content">
           Data source

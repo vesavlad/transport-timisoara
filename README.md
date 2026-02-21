@@ -17,7 +17,7 @@ Cross-platform public transportation map (desktop + mobile via PWA) that visuali
 
 The app currently runs on **mock data**. When you set `VITE_TRANSIT_API_BASE_URL`, the data layer is ready for a vendor adapter to be implemented.
 
-If you set `VITE_LINES_CONFIG_URL`, the app can also use **STPT live route config** (`lines-config.json`) as an input source for routes + shapes.
+By default, the app reads **local STPT assets** from `public/assets/stpt` for routes + shapes.
 Live vehicle status/location can be pulled from **STPT GTFS vehicles** (`gtfs-vehicles.php`).
 
 ## Run locally
@@ -59,18 +59,32 @@ If unset, it defaults to CARTO Voyager:
 
 - `https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json`
 
-### STPT input (optional)
+### STPT input (local assets + sync script)
 
-To periodically fetch STPT’s route config:
+The app uses these local files by default:
 
-- `VITE_LINES_CONFIG_URL` (example: `https://live.stpt.ro/lines-config.json`)
+- `public/assets/stpt/lines-config.json`
+- `public/assets/stpt/routes/<ROUTE_ID>-tur.geojson`
+- `public/assets/stpt/routes/<ROUTE_ID>-retur.geojson`
+
+To refresh them from STPT, run:
+
+- `npm run data:sync:stpt`
+
+Optional env vars for the sync script:
+
+- `STPT_LINES_CONFIG_URL` (default: `https://live.stpt.ro/lines-config.json`)
+- `STPT_ROUTES_BASE_URL` (default: `https://live.stpt.ro/routes`)
+
+Runtime env vars:
+
+- `VITE_LINES_CONFIG_URL` (optional override, default is local `/assets/stpt/lines-config.json`)
 - `VITE_LINES_CONFIG_REFETCH_MS` (default: 900000 = 15 minutes)
 - `VITE_STPT_VEHICLES_URL` (default: `https://live.stpt.ro/gtfs-vehicles.php`)
 
 Notes:
 
-- In **dev**, if the direct URL is blocked by CORS, set `VITE_LINES_CONFIG_URL=/stpt/lines-config.json` to use the built-in dev proxy.
-- In **dev**, if needed, set `VITE_STPT_VEHICLES_URL=/stpt/gtfs-vehicles.php` to use the built-in dev proxy for vehicle data.
+- In **dev**, route GeoJSON has a fallback to `/stpt/routes/...` if local files are missing.
 - `lines-config.json` does not include precise station coordinates; stop marker positions are approximated along the polyline for now.
 
 ## UX structure (current)

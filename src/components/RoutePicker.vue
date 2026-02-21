@@ -45,9 +45,7 @@ const filteredRoutes = computed(() => {
   const routes = routesQuery.data.value ?? []
 
   return routes.filter((r) => {
-    if (typeFilter.value === 'selected' && selectedRouteId.value !== r.id)
-      return false
-    if (typeFilter.value !== 'all' && typeFilter.value !== 'selected' && routeKind(r) !== typeFilter.value)
+    if (typeFilter.value !== 'all' && routeKind(r) !== typeFilter.value)
       return false
 
     return true
@@ -151,7 +149,8 @@ function hasDistinctLongName(route: Route) {
         <div class="text-xs opacity-80">
           If you’re using STPT and see “Failed to fetch”, set
           <span class="font-semibold">VITE_LINES_CONFIG_URL</span> to
-          <span class="font-semibold">/stpt/lines-config.json</span> (dev proxy).
+          <span class="font-semibold">/assets/stpt/lines-config.json</span>
+          and run <span class="font-semibold">npm run data:sync:stpt</span>.
         </div>
       </div>
     </div>

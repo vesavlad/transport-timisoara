@@ -6,6 +6,7 @@
   "packageManager": "pnpm@10.7.0",
   "scripts": {
     "build": "vite build",
+    "data:sync:stpt": "node scripts/sync-stpt-data.mjs",
     "dev": "vite --port 3333 --open",
     "lint": "eslint .",
     "preview": "vite preview",

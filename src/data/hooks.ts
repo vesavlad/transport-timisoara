@@ -33,12 +33,25 @@ interface StptLiveVehiclesResponse {
   }
 }
 
+interface StptStopTimetableItem {
+  route?: string
+  destination?: string
+  times?: string[]
+}
+
+export interface StopTimetablePreview {
+  time: string | null
+  minutes: number | null
+  destination: string | null
+}
+
 type StptRouteDirection = 'tur' | 'retur'
 
 function stptRouteGeoJsonUrl(routeName: string, direction: StptRouteDirection) {
   // routeName is the STPT line key, e.g. "15", "6B".
+  // We fetch from local synced assets.
   const safe = encodeURIComponent(routeName)
-  return `http://localhost:3333/routes/${safe}-${direction}.geojson`
+  return `/assets/stpt/routes/${safe}-${direction}.geojson`
 }
 
 function extractLineStringCoordsFromGeoJson(payload: any): Array<[number, number]> {
@@ -97,26 +110,9 @@ function mergeRouteCoords(
 }
 
 async function fetchStptRouteShapeGeoJson(routeName: string): Promise<RouteShape | null> {
-  const isDev = import.meta.env.DEV
-  const fetchDirection = async (direction: StptRouteDirection) => {
-    const url = stptRouteGeoJsonUrl(routeName, direction)
-    try {
-      return await fetchJson<any>(url)
-    }
-    catch (err) {
-      // Common case: STPT endpoint doesn't send CORS headers.
-      // In dev, retry via the Vite proxy.
-      if (isDev) {
-        const proxied = `/stpt/routes/${encodeURIComponent(routeName)}-${direction}.geojson`
-        return await fetchJson<any>(proxied)
-      }
-      throw err
-    }
-  }
-
   const [turRes, returRes] = await Promise.allSettled([
-    fetchDirection('tur'),
-    fetchDirection('retur'),
+    fetchJson<any>(stptRouteGeoJsonUrl(routeName, 'tur')),
+    fetchJson<any>(stptRouteGeoJsonUrl(routeName, 'retur')),
   ])
 
   const turCoords
@@ -156,30 +152,15 @@ function stptLinesConfigQueryKey(url: string) {
 
 function makeStptLinesConfigGetter(queryClient: ReturnType<typeof useQueryClient>) {
   return async () => {
-    const { linesConfigUrl, linesConfigRefetchMs } = getStptConfig()
+    const { linesConfigUrl } = getStptConfig()
     if (!linesConfigUrl)
       throw new Error('VITE_LINES_CONFIG_URL is not set')
 
-    const tryFetch = async (url: string) =>
-      queryClient.fetchQuery({
-        queryKey: stptLinesConfigQueryKey(url),
-        queryFn: async () => fetchJson<StptLinesConfig>(url),
-        staleTime: linesConfigRefetchMs,
-      })
-
-    try {
-      return await tryFetch(linesConfigUrl)
-    }
-    catch (err) {
-      // Common case: STPT endpoint doesn't send CORS headers.
-      // In dev, we can recover automatically by retrying via the Vite proxy.
-      const isDev = import.meta.env.DEV
-      const looksLikeStpt = /^https?:\/\/live\.stpt\.ro\//i.test(linesConfigUrl)
-      if (isDev && looksLikeStpt) {
-        return await tryFetch('/stpt/lines-config.json')
-      }
-      throw err
-    }
+    return await queryClient.fetchQuery({
+      queryKey: stptLinesConfigQueryKey(linesConfigUrl),
+      queryFn: async () => fetchJson<StptLinesConfig>(linesConfigUrl),
+      staleTime: Number.POSITIVE_INFINITY,
+    })
   }
 }
 
@@ -188,14 +169,16 @@ function makeStptRouteGeoJsonGetter(queryClient: ReturnType<typeof useQueryClien
     queryClient.fetchQuery({
       queryKey: ['stpt', 'route-shape-geojson', routeId],
       queryFn: async () => fetchStptRouteShapeGeoJson(routeId),
-      // Keep GeoJSON shapes cached for a long time so rapid polling only refreshes
-      // lines-config and does not repeatedly hit route GeoJSON endpoints.
-      staleTime: 60 * 60 * 1000,
+      staleTime: Number.POSITIVE_INFINITY,
     })
 }
 
 function normalizeRouteId(value: string) {
   return value.trim().toLowerCase()
+}
+
+function normalizeRouteIdLoose(value: string) {
+  return normalizeRouteId(value).replace(/\s+/g, '')
 }
 
 function parseFiniteNumber(value: unknown): number | null {
@@ -222,6 +205,60 @@ async function fetchStptLiveVehicles(stptVehiclesUrl: string): Promise<StptLiveV
     : stptVehiclesUrl
 
   return await fetchJson<StptLiveVehiclesResponse>(effectiveUrl)
+}
+
+async function fetchStptStopTimetable(
+  stptTimetableUrl: string,
+  stopId: string,
+): Promise<StptStopTimetableItem[]> {
+  const isDev = import.meta.env.DEV
+  const looksLikeStpt = /^https?:\/\/live\.stpt\.ro\//i.test(stptTimetableUrl)
+
+  const url = new URL(stptTimetableUrl)
+  url.searchParams.set('stopid', stopId)
+
+  const effectiveUrl = isDev && looksLikeStpt
+    ? `/stpt/proxy-smtt-cache.php?stopid=${encodeURIComponent(stopId)}`
+    : url.toString()
+
+  return await fetchJson<StptStopTimetableItem[]>(effectiveUrl)
+}
+
+function extractNextTimetableForRoute(
+  payload: StptStopTimetableItem[],
+  routeId: string,
+): StopTimetablePreview {
+  const target = normalizeRouteIdLoose(routeId)
+  for (const item of payload) {
+    const itemRoute = normalizeRouteIdLoose(String(item?.route ?? ''))
+    if (!itemRoute || itemRoute !== target)
+      continue
+
+    const first = Array.isArray(item?.times) ? item.times[0] : null
+    if (!first) {
+      return {
+        time: null,
+        minutes: null,
+        destination: String(item?.destination ?? '').trim() || null,
+      }
+    }
+
+    const [hhmmRaw, minsRaw] = String(first).split('|')
+    const hhmm = String(hhmmRaw ?? '').trim() || null
+    const mins = Number.parseInt(String(minsRaw ?? '').trim(), 10)
+
+    return {
+      time: hhmm,
+      minutes: Number.isFinite(mins) ? mins : null,
+      destination: String(item?.destination ?? '').trim() || null,
+    }
+  }
+
+  return {
+    time: null,
+    minutes: null,
+    destination: null,
+  }
 }
 
 function mapStptLiveVehicles(routeId: string, payload: StptLiveVehiclesResponse): Vehicle[] {
@@ -258,9 +295,41 @@ function mapStptLiveVehicles(routeId: string, payload: StptLiveVehiclesResponse)
   return out
 }
 
+function mapAllStptLiveVehicles(payload: StptLiveVehiclesResponse): Vehicle[] {
+  const items = Array.isArray(payload?.data?.vehicles) ? payload.data!.vehicles! : []
+  const out: Vehicle[] = []
+
+  for (const item of items) {
+    const routeId = String(item?.route ?? '').trim()
+    if (!routeId)
+      continue
+
+    const lat = parseFiniteNumber(item?.lat)
+    const lon = parseFiniteNumber(item?.lng)
+    if (lat == null || lon == null)
+      continue
+
+    const id = String(item?.id ?? '').trim()
+    if (!id)
+      continue
+
+    const heading = parseFiniteNumber(item?.bearing) ?? undefined
+    out.push({
+      id,
+      routeId,
+      label: item?.headsign ? `${id} • ${item.headsign}` : id,
+      lat,
+      lon,
+      heading,
+      updatedAt: parseStptTimestampMs(item?.timestamp),
+    })
+  }
+
+  return out
+}
+
 export function useRoutes() {
   const source = getDataSource()
-  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getLinesConfig = makeStptLinesConfigGetter(qc)
   return useQuery<Route[]>({
@@ -275,14 +344,15 @@ export function useRoutes() {
       // TODO: implement vendor routes mapping
       return mockListRoutes()
     },
-    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
-    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useRouteShape(routeId: Ref<string | null>) {
   const source = getDataSource()
-  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getRouteGeo = makeStptRouteGeoJsonGetter(qc)
   return useQuery<RouteShape | null>({
@@ -306,14 +376,15 @@ export function useRouteShape(routeId: Ref<string | null>) {
       // TODO: implement vendor shape mapping
       return mockGetRouteShape(routeId.value)
     },
-    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
-    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useAllRouteShapes() {
   const source = getDataSource()
-  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getLinesConfig = makeStptLinesConfigGetter(qc)
   const getRouteGeo = makeStptRouteGeoJsonGetter(qc)
@@ -361,14 +432,15 @@ export function useAllRouteShapes() {
         .filter((s): s is RouteShape => !!s)
         .map(s => ({ ...s, source: 'vendor' as const }))
     },
-    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
-    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useStops(routeId: Ref<string | null>) {
   const source = getDataSource()
-  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getLinesConfig = makeStptLinesConfigGetter(qc)
   return useQuery<Stop[]>({
@@ -386,14 +458,15 @@ export function useStops(routeId: Ref<string | null>) {
       // TODO: implement vendor stop mapping
       return mockListStops(routeId.value)
     },
-    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
-    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
 export function useStopsByDirection(routeId: Ref<string | null>) {
   const source = getDataSource()
-  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getLinesConfig = makeStptLinesConfigGetter(qc)
 
@@ -416,8 +489,10 @@ export function useStopsByDirection(routeId: Ref<string | null>) {
         retur: [...stops].reverse(),
       }
     },
-    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
-    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }
 
@@ -426,20 +501,65 @@ export function useVehicles(routeId: Ref<string | null>) {
   const stpt = getStptConfig()
 
   return useQuery<Vehicle[]>({
-    enabled: computed(() => !!routeId.value),
+    enabled: computed(() => source === 'stpt' || !!routeId.value),
     queryKey: computed(() => ['vehicles', routeId.value, source]),
     queryFn: async () => {
-      if (!routeId.value)
+      const activeRouteId = routeId.value
+
+      if (!activeRouteId && source !== 'stpt')
         return []
       if (source === 'mock')
-        return mockListVehicles(routeId.value)
+        return activeRouteId ? mockListVehicles(activeRouteId) : []
       if (source === 'stpt') {
         const payload = await fetchStptLiveVehicles(stpt.vehiclesUrl)
-        return mapStptLiveVehicles(routeId.value, payload)
+        if (!activeRouteId)
+          return mapAllStptLiveVehicles(payload)
+        return mapStptLiveVehicles(activeRouteId, payload)
       }
       // TODO: implement vendor vehicles mapping
-      return mockListVehicles(routeId.value)
+      return activeRouteId ? mockListVehicles(activeRouteId) : []
     },
     refetchInterval: 5000,
+  })
+}
+
+export function useStopTimetables(
+  stopIds: Ref<string[]>,
+  routeId: Ref<string | null>,
+) {
+  const source = getDataSource()
+  const stpt = getStptConfig()
+
+  return useQuery<Record<string, StopTimetablePreview>>({
+    enabled: computed(() => source === 'stpt' && !!routeId.value && stopIds.value.length > 0),
+    queryKey: computed(() => ['stopTimetables', source, routeId.value, ...stopIds.value]),
+    queryFn: async () => {
+      if (source !== 'stpt' || !routeId.value || stopIds.value.length === 0)
+        return {}
+
+      const entries = await Promise.all(
+        stopIds.value.map(async (stopId) => {
+          try {
+            const payload = await fetchStptStopTimetable(stpt.timetableUrl, stopId)
+            const next = extractNextTimetableForRoute(payload, routeId.value!)
+            return [stopId, next] as const
+          }
+          catch {
+            const fallback: StopTimetablePreview = {
+              time: null,
+              minutes: null,
+              destination: null,
+            }
+            return [
+              stopId,
+              fallback,
+            ] as const
+          }
+        }),
+      )
+
+      return Object.fromEntries(entries)
+    },
+    refetchInterval: 60_000,
   })
 }

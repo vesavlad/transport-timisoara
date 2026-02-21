@@ -21,31 +21,19 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Dev-only proxy to avoid potential CORS issues when fetching STPT config from the browser.
-      // Use with: VITE_LINES_CONFIG_URL=/stpt/lines-config.json
-      '/stpt/lines-config.json': {
-        target: 'https://live.stpt.ro',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/lines-config.json',
-      },
-
-      // Dev-only proxy for STPT route GeoJSON files.
-      // Example: /stpt/routes/15-tur.geojson -> https://live.stpt.ro/routes/15-tur.geojson
-      '/stpt/routes': {
-        target: 'https://live.stpt.ro',
-        changeOrigin: true,
-        secure: true,
-        rewrite: path => path.replace(/^\/stpt/, ''),
-      },
-
       // Dev-only proxy for STPT live vehicles.
       // Example: /stpt/gtfs-vehicles.php -> https://live.stpt.ro/gtfs-vehicles.php
       '/stpt/gtfs-vehicles.php': {
         target: 'https://live.stpt.ro',
         changeOrigin: true,
         secure: true,
-        rewrite: () => '/gtfs-vehicles.php',
+        rewrite: path => path.replace(/^\/stpt/, ''),
+      },
+      '/stpt/proxy-smtt-cache.php': {
+        target: 'https://live.stpt.ro',
+        changeOrigin: true,
+        secure: true,
+        rewrite: path => path.replace(/^\/stpt/, ''),
       },
     },
   },

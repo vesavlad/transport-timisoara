@@ -25,19 +25,31 @@ function parseMs(raw: string, fallbackMs: number) {
 
 export function getStptConfig() {
   return {
-    linesConfigUrl: optionalEnv('VITE_LINES_CONFIG_URL'),
+    linesConfigUrl: optionalEnv('VITE_LINES_CONFIG_URL') || '/assets/stpt/lines-config.json',
     linesConfigRefetchMs: parseMs(optionalEnv('VITE_LINES_CONFIG_REFETCH_MS'), 15 * 60 * 1000),
     vehiclesUrl: optionalEnv('VITE_STPT_VEHICLES_URL') || 'https://live.stpt.ro/gtfs-vehicles.php',
+    timetableUrl: optionalEnv('VITE_STPT_TIMETABLE_URL') || 'https://live.stpt.ro/proxy-smtt-cache.php',
   }
 }
 
 export function getMapConfig() {
-  // A Mapbox Style Spec v8 JSON URL compatible with MapLibre.
-  // Default: CARTO Voyager (OSM-based) so streets/land cover are visible out of the box.
+  // Mapbox Style Spec v8 JSON URLs compatible with MapLibre.
+  // Defaults: CARTO Voyager (light) + Dark Matter (dark), both OSM-based.
+  const styleUrl = optionalEnv('VITE_MAP_STYLE_URL')
+  const lightStyleUrl
+    = optionalEnv('VITE_MAP_STYLE_LIGHT_URL')
+      || styleUrl
+      || 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+  const darkStyleUrl
+    = optionalEnv('VITE_MAP_STYLE_DARK_URL')
+      || styleUrl
+      || 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+
   return {
-    styleUrl:
-      optionalEnv('VITE_MAP_STYLE_URL')
-      || 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    // Backward-compatible single URL (used as a fallback by callers).
+    styleUrl: lightStyleUrl,
+    lightStyleUrl,
+    darkStyleUrl,
   }
 }
 
