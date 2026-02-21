@@ -117,7 +117,21 @@ function mergeRouteCoords(
   return dedupeAdjacentCoords([...a, ...b])
 }
 
-async function fetchStptRouteShapeGeoJson(routeName: string): Promise<RouteShape | null> {
+async function fetchStptRouteShapeGeoJson(
+  routeName: string,
+  direction?: StptRouteDirection,
+): Promise<RouteShape | null> {
+  if (direction) {
+    try {
+      const payload = await fetchJson<any>(stptRouteGeoJsonUrl(routeName, direction))
+      const coords = dedupeAdjacentCoords(extractLineStringCoordsFromGeoJson(payload))
+      return coords.length ? { routeId: routeName, coordinates: coords } : null
+    }
+    catch {
+      return null
+    }
+  }
+
   const [turRes, returRes] = await Promise.allSettled([
     fetchJson<any>(stptRouteGeoJsonUrl(routeName, 'tur')),
     fetchJson<any>(stptRouteGeoJsonUrl(routeName, 'retur')),
@@ -173,10 +187,10 @@ function makeStptLinesConfigGetter(queryClient: ReturnType<typeof useQueryClient
 }
 
 function makeStptRouteGeoJsonGetter(queryClient: ReturnType<typeof useQueryClient>) {
-  return async (routeId: string) =>
+  return async (routeId: string, direction?: StptRouteDirection) =>
     queryClient.fetchQuery({
-      queryKey: ['stpt', 'route-shape-geojson', routeId],
-      queryFn: async () => fetchStptRouteShapeGeoJson(routeId),
+      queryKey: ['stpt', 'route-shape-geojson', routeId, direction ?? 'both'],
+      queryFn: async () => fetchStptRouteShapeGeoJson(routeId, direction),
       staleTime: Number.POSITIVE_INFINITY,
     })
 }
@@ -416,6 +430,43 @@ export function useRouteShape(routeId: Ref<string | null>) {
         }
       }
       // TODO: implement vendor shape mapping
+      return mockGetRouteShape(routeId.value)
+    },
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+}
+
+export function useRouteShapeByDirection(
+  routeId: Ref<string | null>,
+  direction: Ref<StptRouteDirection>,
+) {
+  const source = getDataSource()
+  const qc = useQueryClient()
+  const getRouteGeo = makeStptRouteGeoJsonGetter(qc)
+
+  return useQuery<RouteShape | null>({
+    enabled: computed(() => !!routeId.value),
+    queryKey: computed(() => ['routeShapeByDirection', routeId.value, direction.value, source]),
+    queryFn: async () => {
+      if (!routeId.value)
+        return null
+
+      if (source === 'mock')
+        return mockGetRouteShape(routeId.value)
+
+      if (source === 'stpt') {
+        try {
+          return await getRouteGeo(routeId.value, direction.value)
+        }
+        catch {
+          return null
+        }
+      }
+
+      // TODO: implement vendor shape mapping with direction support
       return mockGetRouteShape(routeId.value)
     },
     refetchInterval: false,

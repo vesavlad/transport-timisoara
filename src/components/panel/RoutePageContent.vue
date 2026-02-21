@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { RouteDirection } from '../../state/mapStore'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, ref, watch } from 'vue'
 
+import { computed, nextTick, ref, watch } from 'vue'
 import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStops, useStopsByDirection, useStopTimetables, useVehicles } from '../../data/hooks'
 import { useMapStore } from '../../state/mapStore'
@@ -14,7 +15,7 @@ import VehicleList from '../VehicleList.vue'
 
 const store = useMapStore()
 const router = useRouter()
-const { selectedRouteId, selectedStopId, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
+const { selectedRouteId, selectedDirection, selectedStopId, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
 const stopsQuery = useStops(selectedRouteId)
 const stopsByDirectionQuery = useStopsByDirection(selectedRouteId)
@@ -22,7 +23,7 @@ const vehiclesQuery = useVehicles(selectedRouteId)
 const showStopsByDirectionLoading = useMinimumLoading(stopsByDirectionQuery.isLoading, 320)
 
 type DirectionKey = 'tur' | 'retur'
-const activeDirection = ref<DirectionKey>('tur')
+const activeDirection = ref<DirectionKey>(selectedDirection.value)
 const followDisabled = computed(() => !selectedVehicleId.value)
 
 const selectedVehicle = computed(
@@ -164,6 +165,25 @@ watch(
     activeDirection.value = pickDefaultDirection()
   },
   { immediate: true },
+)
+
+watch(
+  activeDirection,
+  (direction) => {
+    if (selectedDirection.value === direction)
+      return
+    store.setSelectedDirection(direction as RouteDirection)
+  },
+  { immediate: true },
+)
+
+watch(
+  selectedDirection,
+  (direction) => {
+    if (activeDirection.value === direction)
+      return
+    activeDirection.value = direction
+  },
 )
 
 watch(

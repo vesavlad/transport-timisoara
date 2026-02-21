@@ -21,7 +21,7 @@ import {
 
 import { isDark } from '../composables/dark'
 import { getMapConfig } from '../data/client'
-import { useAllRouteShapes, useRoutes, useRouteShape, useStops, useVehicles } from '../data/hooks'
+import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '../data/hooks'
 import { useMapStore } from '../state/mapStore'
 
 import { ensureLayer, setLayerVisibility, upsertGeoJsonSource } from './layers'
@@ -160,12 +160,12 @@ const mapDebug = computed(() => {
 })
 
 const store = useMapStore()
-const { selectedRouteId, layers, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
+const { selectedRouteId, selectedDirection, layers, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
 const routesQuery = useRoutes()
 const allRouteShapesQuery = useAllRouteShapes()
-const routeShapeQuery = useRouteShape(selectedRouteId)
-const stopsQuery = useStops(selectedRouteId)
+const routeShapeByDirectionQuery = useRouteShapeByDirection(selectedRouteId, selectedDirection)
+const stopsByDirectionQuery = useStopsByDirection(selectedRouteId)
 const vehiclesQuery = useVehicles(selectedRouteId)
 const geolocation = useGeolocation({
   enableHighAccuracy: true,
@@ -250,6 +250,25 @@ const routeColorById = computed(() => {
 })
 
 const allRoutesFc = computed(() => {
+  if (selectedRouteId.value) {
+    const shape = routeShapeByDirectionQuery.data.value
+    if (!shape?.coordinates?.length)
+      return asFeatureCollection([])
+
+    return asFeatureCollection([
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: shape.coordinates },
+        properties: {
+          routeId: shape.routeId,
+          color: routeColorById.value.get(shape.routeId) ?? '#60a5fa',
+          isSelected: true,
+          direction: selectedDirection.value,
+        },
+      },
+    ] as Feature[])
+  }
+
   const shapes = (allRouteShapesQuery.data.value ?? []).filter(shape =>
     selectedRouteId.value ? shape.routeId === selectedRouteId.value : true,
   )
@@ -273,9 +292,14 @@ const routesCoverage = computed(() => {
   return { total, geojson }
 })
 
+const activeDirectionStops = computed(() => {
+  const grouped = stopsByDirectionQuery.data.value ?? { tur: [], retur: [] }
+  return selectedDirection.value === 'tur' ? grouped.tur : grouped.retur
+})
+
 const stopsFc = computed(() => {
   return asFeatureCollection(
-    (stopsQuery.data.value ?? []).map(s => ({
+    activeDirectionStops.value.map(s => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [s.lon, s.lat] },
       properties: { stopId: s.id, name: s.name },
@@ -496,7 +520,7 @@ function onVehicleClick(e: MapLayerMouseEvent) {
 }
 
 watch(
-  [isMapLoaded, () => routeShapeQuery.data.value],
+  [isMapLoaded, () => routeShapeByDirectionQuery.data.value],
   ([loaded, shape]) => {
     const map = mapRef.value
     if (!loaded || !map || !shape?.coordinates?.length)
