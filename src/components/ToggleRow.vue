@@ -12,14 +12,14 @@ defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
 </script>
 
 <template>
-  <label class="flex items-center justify-between gap-3 rounded-xl border border-app-border bg-app-panel2 p-3">
+  <label class="flex items-center justify-between gap-3 rounded-box border border-base-300 bg-base-200 p-3">
     <div class="min-w-0">
-      <div class="text-sm font-medium text-app-text">{{ label }}</div>
-      <div v-if="description" class="mt-0.5 text-xs text-app-muted">{{ description }}</div>
+      <div class="text-sm font-medium text-base-content">{{ label }}</div>
+      <div v-if="description" class="mt-0.5 text-xs text-base-content/70">{{ description }}</div>
     </div>
 
     <input
-      class="h-5 w-9 accent-blue-400"
+      class="toggle toggle-primary"
       type="checkbox"
       :checked="modelValue"
       :disabled="disabled"

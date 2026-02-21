@@ -8,13 +8,13 @@ defineProps({
 </script>
 
 <template>
-  <div class="h-full w-full overflow-hidden border-app-border bg-app-panel shadow-panel md:border-r">
+  <div class="h-full w-full overflow-hidden border-base-300 bg-base-100 md:border-r">
     <div class="flex h-full flex-col overflow-hidden">
-      <div class="border-b border-app-border px-4 py-3">
-        <div class="text-base font-semibold text-app-text">
+      <div class="border-b border-base-300 px-4 py-3">
+        <div class="text-base font-semibold text-base-content">
           {{ title }}
         </div>
-        <div v-if="subtitle" class="mt-0.5 text-sm text-app-muted">
+        <div v-if="subtitle" class="mt-0.5 text-sm text-base-content/70">
           {{ subtitle }}
         </div>
       </div>

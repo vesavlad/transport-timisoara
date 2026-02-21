@@ -9,7 +9,7 @@ Cross-platform public transportation map (desktop + mobile via PWA) that visuali
 ## What’s in the box
 
 - Vite + Vue 3 + TypeScript
-- Tailwind CSS for UI
+- Tailwind CSS + daisyUI for UI
 - MapLibre GL JS (OpenStreetMap-based map)
 - Pinia for UI/map state (selected route, layer toggles)
 - TanStack Vue Query for caching + live polling
@@ -32,6 +32,14 @@ If you set `VITE_LINES_CONFIG_URL`, the app can also use **STPT live route confi
 3. Production build
 
 - `npm run build`
+
+## Styling (daisyUI)
+
+This project uses **daisyUI** on top of Tailwind CSS.
+
+- Use semantic component classes like `btn`, `card`, `input`, `toggle`, `badge`.
+- Combine them with Tailwind utilities when needed.
+- Themes are enabled globally via `src/style.css` (`light` as default and `dark` for prefers-color-scheme).
 
 ## Environment variables
 

@@ -166,6 +166,17 @@ function makeStptLinesConfigGetter(queryClient: ReturnType<typeof useQueryClient
   }
 }
 
+function makeStptRouteGeoJsonGetter(queryClient: ReturnType<typeof useQueryClient>) {
+  return async (routeId: string) =>
+    queryClient.fetchQuery({
+      queryKey: ['stpt', 'route-shape-geojson', routeId],
+      queryFn: async () => fetchStptRouteShapeGeoJson(routeId),
+      // Keep GeoJSON shapes cached for a long time so rapid polling only refreshes
+      // lines-config and does not repeatedly hit route GeoJSON endpoints.
+      staleTime: 60 * 60 * 1000,
+    })
+}
+
 export function useRoutes() {
   const source = getDataSource()
   const stpt = getStptConfig()
@@ -192,7 +203,7 @@ export function useRouteShape(routeId: Ref<string | null>) {
   const source = getDataSource()
   const stpt = getStptConfig()
   const qc = useQueryClient()
-  const getLinesConfig = makeStptLinesConfigGetter(qc)
+  const getRouteGeo = makeStptRouteGeoJsonGetter(qc)
   return useQuery<RouteShape | null>({
     enabled: computed(() => !!routeId.value),
     queryKey: computed(() => ['routeShape', routeId.value, source]),
@@ -202,21 +213,72 @@ export function useRouteShape(routeId: Ref<string | null>) {
       if (source === 'mock')
         return mockGetRouteShape(routeId.value)
       if (source === 'stpt') {
-        // Prefer live GeoJSON (more accurate than lines-config).
-        // If it fails (CORS/prod), fall back to lines-config.
+        // Strict mode: only render route line when GeoJSON is available.
         try {
-          const geo = await fetchStptRouteShapeGeoJson(routeId.value)
-          if (geo)
-            return geo
+          const geo = await getRouteGeo(routeId.value)
+          return geo ?? null
         }
         catch {
-          // ignore; fallback below
+          return null
         }
-        const cfg = await getLinesConfig()
-        return stptLinesConfigToRouteShape(cfg, routeId.value)
       }
       // TODO: implement vendor shape mapping
       return mockGetRouteShape(routeId.value)
+    },
+    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
+    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+  })
+}
+
+export function useAllRouteShapes() {
+  const source = getDataSource()
+  const stpt = getStptConfig()
+  const qc = useQueryClient()
+  const getLinesConfig = makeStptLinesConfigGetter(qc)
+  const getRouteGeo = makeStptRouteGeoJsonGetter(qc)
+
+  return useQuery<Array<RouteShape & { source: 'geojson' | 'mock' | 'vendor' }>>({
+    queryKey: ['routeShapes', source],
+    queryFn: async () => {
+      if (source === 'mock') {
+        const routes = await mockListRoutes()
+        const shapes = await Promise.all(routes.map(r => mockGetRouteShape(r.id)))
+        return shapes
+          .filter((s): s is RouteShape => !!s)
+          .map(s => ({ ...s, source: 'mock' as const }))
+      }
+
+      if (source === 'stpt') {
+        const cfg = await getLinesConfig()
+        const routes = stptLinesConfigToRoutes(cfg)
+
+        // Strict mode: include only routes with available GeoJSON.
+        const geoShapes = await Promise.allSettled(
+          routes.map(async (r) => {
+            try {
+              return await getRouteGeo(r.id)
+            }
+            catch {
+              return null
+            }
+          }),
+        )
+
+        return geoShapes
+          .map((res) => {
+            if (res.status === 'fulfilled' && res.value)
+              return { ...res.value, source: 'geojson' as const }
+            return null
+          })
+          .filter((s): s is RouteShape & { source: 'geojson' } => !!s)
+      }
+
+      // TODO: implement vendor route-shape mapping
+      const routes = await mockListRoutes()
+      const shapes = await Promise.all(routes.map(r => mockGetRouteShape(r.id)))
+      return shapes
+        .filter((s): s is RouteShape => !!s)
+        .map(s => ({ ...s, source: 'vendor' as const }))
     },
     refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
     staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,

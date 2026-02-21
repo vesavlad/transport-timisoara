@@ -4,28 +4,36 @@ import { useMapStore } from '../state/mapStore'
 
 const store = useMapStore()
 
-const labels: Record<LayerId, string> = {
-  routes: 'Routes',
-  stops: 'Stations',
-  vehicles: 'Live vehicles',
+const layersMeta: Record<LayerId, { label: string, icon: string, activeClass: string }> = {
+  routes: { label: 'Routes', icon: '🛣️', activeClass: 'btn-primary' },
+  stops: { label: 'Stations', icon: '📍', activeClass: 'btn-success' },
+  vehicles: { label: 'Live vehicles', icon: '🚌', activeClass: 'btn-warning' },
 }
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-2">
-    <button
-      v-for="(label, id) in labels"
-      :key="id"
-      class="rounded-full border px-3 py-1 text-sm transition"
-      :class="
-        store.layers[id as LayerId]
-          ? 'border-app-border bg-app-panel2 text-app-text'
-          : 'border-app-border/60 bg-transparent text-app-muted'
-      "
-      type="button"
-      @click="store.toggleLayer(id as LayerId)"
-    >
-      {{ label }}
-    </button>
+  <div class="space-y-2">
+    <div class="text-xs uppercase tracking-wide text-base-content/70">
+      Layers
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button
+        v-for="(meta, id) in layersMeta"
+        :key="id"
+        class="btn btn-sm rounded-full"
+        :class="
+          store.layers[id as LayerId]
+            ? ['btn-soft', meta.activeClass]
+            : 'btn-outline'
+        "
+        type="button"
+        :aria-pressed="store.layers[id as LayerId]"
+        :title="`${store.layers[id as LayerId] ? 'Hide' : 'Show'} ${meta.label}`"
+        @click="store.toggleLayer(id as LayerId)"
+      >
+        <span aria-hidden="true">{{ meta.icon }}</span>
+        {{ meta.label }}
+      </button>
+    </div>
   </div>
 </template>

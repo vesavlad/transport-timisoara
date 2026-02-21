@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useRoutes } from '../data/hooks'
 import { useMapStore } from '../state/mapStore'
@@ -22,51 +22,64 @@ const filteredRoutes = computed(() => {
     return hay.includes(query)
   })
 })
-
-watchEffect(() => {
-  if (selectedRouteId.value)
-    return
-  const first = routesQuery.data.value?.[0]
-  if (first)
-    store.selectRoute(first.id)
-})
 </script>
 
 <template>
-  <div class="space-y-2">
-    <div class="text-xs uppercase tracking-wide text-app-muted">
-      Route
+  <fieldset class="fieldset w-full">
+    <div class="flex items-center justify-between gap-2">
+      <legend class="fieldset-legend">
+        Route
+      </legend>
+      <div class="flex items-center gap-2">
+        <span class="badge badge-ghost badge-sm">
+          {{ filteredRoutes.length }}
+        </span>
+        <button
+          v-if="selectedRouteId"
+          type="button"
+          class="btn btn-xs btn-ghost"
+          @click="store.selectRoute(null)"
+        >
+          Show all routes
+        </button>
+      </div>
     </div>
 
     <input
       v-model="q"
-      class="w-full rounded-lg border border-app-border bg-app-panel2 px-3 py-2 text-sm text-app-text outline-none"
+      class="input input-sm input-bordered w-full"
       type="search"
       placeholder="Search routes…"
       autocomplete="off"
     >
 
-    <div v-if="routesQuery.isLoading.value" class="text-sm text-app-muted">
-      Loading routes…
-    </div>
-    <div v-else-if="routesQuery.error.value" class="space-y-1 text-sm text-red-300">
-      <div>Failed to load routes</div>
-      <div class="text-xs text-red-200/90">
-        {{
-          (routesQuery.error.value as any)?.message
-            ? (routesQuery.error.value as any).message
-            : String(routesQuery.error.value)
-        }}
+    <div v-if="routesQuery.isLoading.value" class="space-y-2">
+      <div class="flex items-center gap-2 text-sm text-base-content/70">
+        <span class="loading loading-spinner loading-sm" />
+        Loading routes…
       </div>
-      <div class="text-xs text-app-muted">
-        If you’re using STPT and see “Failed to fetch”, set
-        <span class="text-app-text">VITE_LINES_CONFIG_URL</span> to
-        <span class="text-app-text">/stpt/lines-config.json</span> (dev proxy).
+      <div class="skeleton h-9 w-full" />
+    </div>
+    <div v-else-if="routesQuery.error.value" role="alert" class="alert alert-error alert-soft mt-1">
+      <div class="space-y-1 text-sm">
+        <div>Failed to load routes</div>
+        <div class="text-xs">
+          {{
+            (routesQuery.error.value as any)?.message
+              ? (routesQuery.error.value as any).message
+              : String(routesQuery.error.value)
+          }}
+        </div>
+        <div class="text-xs opacity-80">
+          If you’re using STPT and see “Failed to fetch”, set
+          <span class="font-semibold">VITE_LINES_CONFIG_URL</span> to
+          <span class="font-semibold">/stpt/lines-config.json</span> (dev proxy).
+        </div>
       </div>
     </div>
     <select
       v-else
-      class="w-full rounded-lg border border-app-border bg-app-panel2 px-3 py-2 text-sm text-app-text outline-none"
+      class="select select-sm select-bordered w-full"
       :value="selectedRouteId ?? ''"
       @change="store.selectRoute(($event.target as HTMLSelectElement).value || null)"
     >
@@ -80,8 +93,8 @@ watchEffect(() => {
       </option>
     </select>
 
-    <div v-if="filteredRoutes.length === 0 && !routesQuery.isLoading.value" class="text-xs text-app-muted">
+    <p v-if="filteredRoutes.length === 0 && !routesQuery.isLoading.value" class="label text-xs text-base-content/70">
       No routes match “{{ q }}”.
-    </div>
-  </div>
+    </p>
+  </fieldset>
 </template>

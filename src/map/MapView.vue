@@ -18,7 +18,7 @@ import {
 } from 'vue-maplibre-gl'
 
 import { getMapConfig } from '../data/client'
-import { useRouteShape, useStops, useVehicles } from '../data/hooks'
+import { useAllRouteShapes, useRoutes, useRouteShape, useStops, useVehicles } from '../data/hooks'
 import { useMapStore } from '../state/mapStore'
 
 import { ensureLayer, setLayerVisibility, upsertGeoJsonSource } from './layers'
@@ -54,70 +54,6 @@ interface MapEventPayload<T = unknown> {
   map: MaplibreMap
   component: unknown
   event: T
-}
-
-function initSourcesAndLayers(map: MaplibreMap) {
-  // Sources
-  upsertGeoJsonSource(map, 'routes-src', routeFc.value as any)
-  upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
-  upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
-
-  // Layers
-  ensureLayer(map, {
-    id: 'routes-line',
-    type: 'line',
-    source: 'routes-src',
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round',
-    },
-    paint: routesLinePaint as any,
-  } as any)
-
-  ensureLayer(map, {
-    id: 'stops-circle',
-    type: 'circle',
-    source: 'stops-src',
-    paint: stopsCirclePaint as any,
-  } as any)
-
-  ensureLayer(map, {
-    id: 'stops-label',
-    type: 'symbol',
-    source: 'stops-src',
-    minzoom: 13,
-    layout: {
-      ...(stopsLabelLayout as any),
-      visibility: 'visible',
-    },
-    paint: stopsLabelPaint as any,
-  } as any)
-
-  ensureLayer(map, {
-    id: 'vehicles-circle',
-    type: 'circle',
-    source: 'vehicles-src',
-    paint: vehiclesCirclePaint as any,
-  } as any)
-
-  // Apply current visibility toggles
-  setLayerVisibility(map, 'routes-line', layers.value.routes)
-  setLayerVisibility(map, 'stops-circle', layers.value.stops)
-  setLayerVisibility(map, 'stops-label', layers.value.stops)
-  setLayerVisibility(map, 'vehicles-circle', layers.value.vehicles)
-
-  // Interactions
-  map.on('click', 'stops-circle', e => onStopClick(e as any))
-  map.on('click', 'vehicles-circle', e => onVehicleClick(e as any))
-
-  for (const id of ['stops-circle', 'vehicles-circle'] as const) {
-    map.on('mouseenter', id, () => {
-      map.getCanvas().style.cursor = 'pointer'
-    })
-    map.on('mouseleave', id, () => {
-      map.getCanvas().style.cursor = ''
-    })
-  }
 }
 
 function onMapLoad(payload: MapEventPayload) {
@@ -192,21 +128,42 @@ const mapDebug = computed(() => {
 const store = useMapStore()
 const { selectedRouteId, layers, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
+const routesQuery = useRoutes()
+const allRouteShapesQuery = useAllRouteShapes()
 const routeShapeQuery = useRouteShape(selectedRouteId)
 const stopsQuery = useStops(selectedRouteId)
 const vehiclesQuery = useVehicles(selectedRouteId)
 
-const routeFc = computed(() => {
-  const shape = routeShapeQuery.data.value
-  if (!shape)
-    return asFeatureCollection([])
-  return asFeatureCollection([
-    {
+const routeColorById = computed(() => {
+  const map = new Map<string, string>()
+  for (const r of routesQuery.data.value ?? []) {
+    map.set(r.id, r.color ?? '#60a5fa')
+  }
+  return map
+})
+
+const allRoutesFc = computed(() => {
+  const shapes = (allRouteShapesQuery.data.value ?? []).filter(shape =>
+    selectedRouteId.value ? shape.routeId === selectedRouteId.value : true,
+  )
+  return asFeatureCollection(
+    shapes.map(shape => ({
       type: 'Feature',
       geometry: { type: 'LineString', coordinates: shape.coordinates },
-      properties: { routeId: shape.routeId },
-    } as Feature,
-  ])
+      properties: {
+        routeId: shape.routeId,
+        color: routeColorById.value.get(shape.routeId) ?? '#60a5fa',
+        isSelected: !!selectedRouteId.value && shape.routeId === selectedRouteId.value,
+      },
+    })) as Feature[],
+  )
+})
+
+const routesCoverage = computed(() => {
+  const shapes = allRouteShapesQuery.data.value ?? []
+  const total = shapes.length
+  const geojson = shapes.filter(s => s.source === 'geojson').length
+  return { total, geojson }
 })
 
 const stopsFc = computed(() => {
@@ -237,9 +194,9 @@ const initialCenter = [21.2272, 45.7489] as [number, number]
 const initialZoom = 13
 
 const routesLinePaint = {
-  'line-color': '#60a5fa',
-  'line-width': 5,
-  'line-opacity': 0.9,
+  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
+  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6, 3.5] as any,
+  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.98, 0.8] as any,
 } satisfies LineLayerSpecification['paint']
 
 const stopsCirclePaint = {
@@ -287,6 +244,12 @@ function onStopClick(e: MapLayerMouseEvent) {
     store.selectStop(stopId)
 }
 
+function onRouteClick(e: MapLayerMouseEvent) {
+  const routeId = getStringProperty(e, 'routeId')
+  if (routeId)
+    store.selectRoute(routeId)
+}
+
 function onVehicleClick(e: MapLayerMouseEvent) {
   const vehicleId = getStringProperty(e, 'vehicleId')
   if (vehicleId)
@@ -327,12 +290,12 @@ watch(
 
 // Keep sources in sync with data.
 watch(
-  [isMapLoaded, routeFc, stopsFc, vehiclesFc],
+  [isMapLoaded, allRoutesFc, stopsFc, vehiclesFc],
   ([loaded]) => {
     const map = mapRef.value
     if (!loaded || !map)
       return
-    upsertGeoJsonSource(map, 'routes-src', routeFc.value as any)
+    upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
     upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
     upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
   },
@@ -352,12 +315,77 @@ watch(
   },
   { deep: true },
 )
+
+function initSourcesAndLayers(map: MaplibreMap) {
+  // Sources
+  upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
+  upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
+  upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
+
+  // Layers
+  ensureLayer(map, {
+    id: 'routes-line',
+    type: 'line',
+    source: 'routes-src',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
+    paint: routesLinePaint as any,
+  } as any)
+
+  ensureLayer(map, {
+    id: 'stops-circle',
+    type: 'circle',
+    source: 'stops-src',
+    paint: stopsCirclePaint as any,
+  } as any)
+
+  ensureLayer(map, {
+    id: 'stops-label',
+    type: 'symbol',
+    source: 'stops-src',
+    minzoom: 13,
+    layout: {
+      ...(stopsLabelLayout as any),
+      visibility: 'visible',
+    },
+    paint: stopsLabelPaint as any,
+  } as any)
+
+  ensureLayer(map, {
+    id: 'vehicles-circle',
+    type: 'circle',
+    source: 'vehicles-src',
+    paint: vehiclesCirclePaint as any,
+  } as any)
+
+  // Apply current visibility toggles
+  setLayerVisibility(map, 'routes-line', layers.value.routes)
+  setLayerVisibility(map, 'stops-circle', layers.value.stops)
+  setLayerVisibility(map, 'stops-label', layers.value.stops)
+  setLayerVisibility(map, 'vehicles-circle', layers.value.vehicles)
+
+  // Interactions
+  map.on('click', 'routes-line', e => onRouteClick(e as any))
+  map.on('click', 'stops-circle', e => onStopClick(e as any))
+  map.on('click', 'vehicles-circle', e => onVehicleClick(e as any))
+
+  for (const id of ['routes-line', 'stops-circle', 'vehicles-circle'] as const) {
+    map.on('mouseenter', id, () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', id, () => {
+      map.getCanvas().style.cursor = ''
+    })
+  }
+}
 </script>
 
 <template>
   <div class="relative h-full w-full">
     <div
-      class="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded-lg border border-app-border bg-black/60 px-2 py-1 text-xs text-slate-100 backdrop-blur"
+      class="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded-box border border-base-300 bg-base-100/85 px-2 py-1 text-xs text-base-content backdrop-blur"
     >
       <div class="font-semibold">
         Map debug
@@ -369,8 +397,16 @@ watch(
         view: {{ mapDebug.view }}
       </div>
       <div>
-        route: {{ routeFc.features.length }} • stops: {{ stopsFc.features.length }} • vehicles: {{
+        routes: {{ allRoutesFc.features.length }} • stops: {{ stopsFc.features.length }} • vehicles: {{
           vehiclesFc.features.length }}
+      </div>
+      <div class="mt-0.5 flex flex-wrap items-center gap-1">
+        <span
+          class="badge badge-xs"
+          :class="routesCoverage.geojson === routesCoverage.total ? 'badge-success' : 'badge-warning'"
+        >
+          geojson {{ routesCoverage.geojson }}/{{ routesCoverage.total }}
+        </span>
       </div>
       <div class="truncate">
         style: {{ styleUrl }}
@@ -382,7 +418,7 @@ watch(
         lyr: r {{ mapDebug.layers.routes }}, s {{ mapDebug.layers.stops }}, sl {{ mapDebug.layers.stopsLabel
         }}, v {{ mapDebug.layers.vehicles }}
       </div>
-      <div v-if="lastMapError" class="mt-1 text-rose-200">
+      <div v-if="lastMapError" class="mt-1 text-error">
         error: {{ lastMapError }}
       </div>
     </div>

@@ -7,9 +7,10 @@ import { setWorkerUrl } from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url'
 
 import { createPinia } from 'pinia'
-import { createApp } from 'vue'
+import { createApp, watchEffect } from 'vue'
 
 import App from './App.vue'
+import { isDark } from './composables/dark'
 // Global MapLibre + vue-maplibre-gl styles
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -17,6 +18,10 @@ import 'vue-maplibre-gl/dist/vue-maplibre-gl.css'
 import './style.css'
 
 setWorkerUrl(maplibreWorkerUrl)
+
+watchEffect(() => {
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {
