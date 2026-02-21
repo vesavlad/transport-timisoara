@@ -3,12 +3,9 @@ import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import type {
   CircleLayerSpecification,
   FillLayerSpecification,
-  LineLayerSpecification,
   LngLatBoundsLike,
   MapLayerMouseEvent,
-  MapLibreEvent,
   Map as MaplibreMap,
-  SymbolLayerSpecification,
 } from 'maplibre-gl'
 import { useGeolocation } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -16,13 +13,18 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
 import {
   MglMap,
+  MglSymbolLayer,
+  MglCircleLayer,
+  MglRasterLayer,
+  MglLineLayer,
+  MglScaleControl,
   MglNavigationControl,
 } from 'vue-maplibre-gl'
 
-import { isDark } from '../composables/dark'
-import { getMapConfig } from '../data/client'
-import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '../data/hooks'
-import { useMapStore } from '../state/mapStore'
+import { isDark } from '~/composables/dark'
+import { getMapConfig } from '~/data/client'
+import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '~/data/hooks'
+import { useMapStore } from '~/state/mapStore'
 
 import { ensureLayer, setLayerVisibility, upsertGeoJsonSource } from './layers'
 
@@ -49,7 +51,6 @@ function bboxFromLine(coords: Array<[number, number]>): LngLatBoundsLike {
 
 const mapLoadCount = ref(0)
 const isMapLoaded = ref(false)
-const lastMapError = ref<string>('')
 const mapRef = shallowRef<MaplibreMap | null>(null)
 const styleListenerBound = ref(false)
 const layerInteractionsBound = ref(false)
@@ -91,72 +92,6 @@ onBeforeUnmount(() => {
   if (!map || !styleListenerBound.value)
     return
   map.off('styledata', onMapStyleData)
-})
-
-function onMapError(payload: MapEventPayload<MapLibreEvent<any>>) {
-  // MapLibre passes { error } on error events.
-  const e = payload.event
-  const msg = (e as any)?.error?.message ?? String((e as any)?.error ?? '')
-  lastMapError.value = msg
-}
-
-const mapDebug = computed(() => {
-  const map = mapRef.value
-  const hasSource = (id: string) => {
-    try {
-      return map?.getSource(id) ? 'yes' : 'no'
-    }
-    catch {
-      return 'err'
-    }
-  }
-  const hasLayer = (id: string) => {
-    try {
-      return map?.getLayer(id) ? 'yes' : 'no'
-    }
-    catch {
-      return 'err'
-    }
-  }
-  const visibility = (id: string) => {
-    try {
-      const v = map?.getLayoutProperty(id, 'visibility')
-      return v == null ? 'default' : String(v)
-    }
-    catch {
-      return 'err'
-    }
-  }
-  let view = ''
-  try {
-    if (map) {
-      const c = map.getCenter()
-      view = `${c.lng.toFixed(5)},${c.lat.toFixed(5)} z${map.getZoom().toFixed(2)}`
-    }
-  }
-  catch {
-    // ignore
-  }
-
-  return {
-    hasMap: !!map,
-    view,
-    sources: {
-      routes: hasSource('routes-src'),
-      stops: hasSource('stops-src'),
-      vehicles: hasSource('vehicles-src'),
-      userLocation: hasSource('user-location-src'),
-    },
-    layers: {
-      routes: `${hasLayer('routes-line')} (${visibility('routes-line')})`,
-      routesCasing: `${hasLayer('routes-line-casing')} (${visibility('routes-line-casing')})`,
-      stops: `${hasLayer('stops-pin')} (${visibility('stops-pin')})`,
-      stopsLabel: `${hasLayer('stops-label')} (${visibility('stops-label')})`,
-      vehicles: `${hasLayer('vehicles-circle')} (${visibility('vehicles-circle')})`,
-      userLocationAccuracy: `${hasLayer('user-location-accuracy')} (${visibility('user-location-accuracy')})`,
-      userLocationPoint: `${hasLayer('user-location-point')} (${visibility('user-location-point')})`,
-    },
-  }
 })
 
 const store = useMapStore()
@@ -232,15 +167,6 @@ const userLocationFc = computed(() => {
   ] as Feature[])
 })
 
-const userLocationText = computed(() => {
-  const p = userLocationPoint.value
-  return p
-    ? `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`
-    : 'waiting for permission/location…'
-})
-
-const geolocationErrorText = computed(() => geolocation.error.value?.message ?? '')
-
 const routeColorById = computed(() => {
   const map = new Map<string, string>()
   for (const r of routesQuery.data.value ?? []) {
@@ -285,13 +211,6 @@ const allRoutesFc = computed(() => {
   )
 })
 
-const routesCoverage = computed(() => {
-  const shapes = allRouteShapesQuery.data.value ?? []
-  const total = shapes.length
-  const geojson = shapes.filter(s => s.source === 'geojson').length
-  return { total, geojson }
-})
-
 const activeDirectionStops = computed(() => {
   const grouped = stopsByDirectionQuery.data.value ?? { tur: [], retur: [] }
   return selectedDirection.value === 'tur' ? grouped.tur : grouped.retur
@@ -324,11 +243,6 @@ const vehiclesFc = computed(() => {
 
 const { styleUrl, lightStyleUrl, darkStyleUrl } = getMapConfig()
 const activeStyleUrl = computed(() => (isDark.value ? darkStyleUrl : lightStyleUrl || styleUrl))
-
-// Initial center doesn’t matter much because we auto-fit to the selected route.
-// Defaulting near Timisoara (STPT) makes first load more relevant.
-const initialCenter = [21.2272, 45.7489] as [number, number]
-const initialZoom = 13
 
 const STATION_PIN_IMAGE_ID = 'station-pin'
 
@@ -430,46 +344,6 @@ function ensureStationPinImage(map: MaplibreMap) {
   const imageData = ctx.getImageData(0, 0, size, size)
   map.addImage(STATION_PIN_IMAGE_ID, imageData, { pixelRatio: 2 })
 }
-
-const routesLinePaint = {
-  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
-  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
-} satisfies LineLayerSpecification['paint']
-
-const routesLineCasingPaint = {
-  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 12, 8] as any,
-  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.3, 0.2] as any,
-  'line-blur': 1.2,
-} satisfies LineLayerSpecification['paint']
-
-const stopsPinLayout = {
-  'icon-image': STATION_PIN_IMAGE_ID,
-  'icon-anchor': 'bottom',
-  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.65, 16, 0.85] as any,
-  'icon-allow-overlap': true,
-  'icon-ignore-placement': true,
-} satisfies SymbolLayerSpecification['layout']
-
-const stopsPinPaint = {
-  'icon-opacity': 1,
-} satisfies SymbolLayerSpecification['paint']
-
-const stopsLabelPaint = {
-  'text-color': '#f8fafc',
-  'text-halo-color': '#0f172a',
-  'text-halo-width': 1.8,
-  'text-halo-blur': 0.8,
-} satisfies SymbolLayerSpecification['paint']
-
-const stopsLabelLayout = {
-  'text-field': ['get', 'name'] as any,
-  'text-size': 12,
-  'text-offset': [0, 1.2],
-  'text-anchor': 'top',
-  'text-allow-overlap': false,
-} satisfies SymbolLayerSpecification['layout']
 
 const vehiclesCirclePaint = {
   'circle-radius': ['case', ['boolean', ['get', 'isSelected'], false], 10, ['interpolate', ['linear'], ['zoom'], 10, 6, 14, 8]] as any,
@@ -599,7 +473,12 @@ function initSourcesAndLayers(map: MaplibreMap) {
       'line-join': 'round',
       'line-cap': 'round',
     },
-    paint: routesLineCasingPaint as any,
+    paint: {
+      'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
+      'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 12, 8] as any,
+      'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.3, 0.2] as any,
+      'line-blur': 1.2,
+    },
   } as any)
 
   ensureLayer(map, {
@@ -610,15 +489,27 @@ function initSourcesAndLayers(map: MaplibreMap) {
       'line-join': 'round',
       'line-cap': 'round',
     },
-    paint: routesLinePaint as any,
+    paint: {
+      'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
+      'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
+      'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
+    },
   } as any)
 
   ensureLayer(map, {
     id: 'stops-pin',
     type: 'symbol',
     source: 'stops-src',
-    layout: stopsPinLayout as any,
-    paint: stopsPinPaint as any,
+    layout: {
+      'icon-image': STATION_PIN_IMAGE_ID,
+      'icon-anchor': 'bottom',
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.65, 16, 0.85] as any,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+    paint: {
+      'icon-opacity': 1,
+    },
   } as any)
 
   ensureLayer(map, {
@@ -627,10 +518,19 @@ function initSourcesAndLayers(map: MaplibreMap) {
     source: 'stops-src',
     minzoom: 13,
     layout: {
-      ...(stopsLabelLayout as any),
-      visibility: 'visible',
+      'text-field': ['get', 'name'] as any,
+      'text-size': 12,
+      'text-offset': [0, 1.2],
+      'text-anchor': 'top',
+      'text-allow-overlap': false,
+      'visibility': 'visible',
     },
-    paint: stopsLabelPaint as any,
+    paint: {
+      'text-color': '#f8fafc',
+      'text-halo-color': '#0f172a',
+      'text-halo-width': 1.8,
+      'text-halo-blur': 0.8,
+    },
   } as any)
 
   ensureLayer(map, {
@@ -685,81 +585,23 @@ function initSourcesAndLayers(map: MaplibreMap) {
 
 <template>
   <div class="relative h-full w-full">
-    <div
-      v-if="selectedRouteId"
-      class="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-1 rounded-box border border-base-300 bg-base-100/90 px-2 py-1 text-xs shadow-sm backdrop-blur"
-    >
-      <span class="badge badge-xs badge-soft badge-primary">{{ selectedRouteId }}</span>
-      <span class="badge badge-xs" :class="selectedDirection === 'tur' ? 'badge-info badge-soft' : 'badge-secondary badge-soft'">
-        {{ selectedDirection }}
-      </span>
-    </div>
-
-    <div
-      v-if="false"
-      class="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded-box border border-base-300 bg-base-100/85 px-2 py-1 text-xs text-base-content backdrop-blur"
-    >
-      <div class="font-semibold">
-        Map debug
-      </div>
-      <div>
-        loaded(ref): {{ isMapLoaded }} • loads: {{ mapLoadCount }} • map: {{ mapDebug.hasMap ? 'yes' : 'no' }}
-      </div>
-      <div v-if="mapDebug.view">
-        view: {{ mapDebug.view }}
-      </div>
-      <div>
-        routes: {{ allRoutesFc.features.length }} • stops: {{ stopsFc.features.length }} • vehicles: {{
-          vehiclesFc.features.length }}
-      </div>
-      <div class="mt-0.5 flex flex-wrap items-center gap-1">
-        <span
-          class="badge badge-xs"
-          :class="routesCoverage.geojson === routesCoverage.total ? 'badge-success' : 'badge-warning'"
-        >
-          geojson {{ routesCoverage.geojson }}/{{ routesCoverage.total }}
-        </span>
-      </div>
-      <div class="truncate">
-        style: {{ activeStyleUrl }}
-      </div>
-      <div>
-        src: r {{ mapDebug.sources.routes }}, s {{ mapDebug.sources.stops }}, v {{ mapDebug.sources.vehicles }}, u {{
-          mapDebug.sources.userLocation }}
-      </div>
-      <div>
-        lyr: r {{ mapDebug.layers.routes }}, rc {{ mapDebug.layers.routesCasing }}, s {{ mapDebug.layers.stops }}, sl {{ mapDebug.layers.stopsLabel
-        }}, v {{ mapDebug.layers.vehicles }}, ua {{ mapDebug.layers.userLocationAccuracy }}, up {{
-          mapDebug.layers.userLocationPoint }}
-      </div>
-      <div>
-        my location: {{ userLocationText }}
-      </div>
-      <div v-if="geolocationErrorText" class="mt-1 text-warning">
-        geolocation: {{ geolocationErrorText }}
-      </div>
-      <div v-if="lastMapError" class="mt-1 text-error">
-        error: {{ lastMapError }}
-      </div>
-    </div>
-
     <MglMap
       :map-style="activeStyleUrl"
       :track-resize="true"
-      :center="initialCenter"
-      :zoom="initialZoom"
-      :attribution-control="{ compact: true, customAttribution: '© OpenMapTiles, © OpenStreetMap contributors' }"
+      :center="[21.2272, 45.7489]"
+      :zoom="13"
+      :attribution-control="false"
       class="h-full w-full vibrant-map"
       @map:load="onMapLoad"
-      @map:error="onMapError"
     >
+      <MglScaleControl position="bottom-right"/>
       <MglNavigationControl v-if="false" position="bottom-right" :visualize-pitch="true" />
+      <MglLineLayer />
+      <MglSymbolLayer :source="vehiclesFc"/>
     </MglMap>
   </div>
 </template>
 
 <style scoped>
-.vibrant-map :deep(.maplibregl-canvas) {
-  filter: saturate(1.22) contrast(1.08) brightness(1.03);
-}
+
 </style>
