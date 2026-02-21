@@ -20,6 +20,7 @@
     "sizecheck": "npx vite-bundle-visualizer"
   },
   "dependencies": {
+    "@indoorequal/vue-maplibre-gl": "^8",
     "@tanstack/vue-query": "^5.92.9",
     "@unhead/vue": "^2.1.4",
     "@vueuse/core": "^14.2.1",
@@ -29,7 +30,6 @@
     "nprogress": "^0.2.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.28",
-    "vue-maplibre-gl": "^5.6.1",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {

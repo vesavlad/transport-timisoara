@@ -13,12 +13,12 @@ const router = useRouter()
 
 const routesQuery = useRoutes()
 
-const typeFilter = ref<'all' | 'express' | 'metro' | 'regular' | 'scholl'>('all')
+const typeFilter = ref<'all' | 'express' | 'metro' | 'regular' | 'school'>('all')
 
-function routeKind(route: Route): 'express' | 'metro' | 'regular' | 'scholl' {
+function routeKind(route: Route): 'express' | 'metro' | 'regular' | 'school' {
   const id = String(route.shortName || route.id).trim().toUpperCase()
   if (id.startsWith('S'))
-    return 'scholl'
+    return 'school'
   if (id.startsWith('E'))
     return 'express'
   if (id.startsWith('M'))
@@ -31,7 +31,7 @@ const routeTypeCounts = computed(() => {
   let express = 0
   let metro = 0
   let regular = 0
-  let scholl = 0
+  let school = 0
 
   for (const route of routes) {
     const kind = routeKind(route)
@@ -39,13 +39,13 @@ const routeTypeCounts = computed(() => {
       express++
     else if (kind === 'metro')
       metro++
-    else if (kind === 'scholl')
-      scholl++
+    else if (kind === 'school')
+      school++
     else
       regular++
   }
 
-  return { express, metro, regular, scholl }
+  return { express, metro, regular, school }
 })
 
 const filteredRoutes = computed(() => {
@@ -122,8 +122,8 @@ function openRoute(routeId: string) {
         :value="`Regular (${routeTypeCounts.regular})`" @click="typeFilter = 'regular'"
       >
       <input
-        class="btn btn-xs" :class="typeFilter === 'scholl' ? 'btn-primary' : 'btn-ghost'" type="button"
-        :value="`Scholl (${routeTypeCounts.scholl})`" @click="typeFilter = 'scholl'"
+        class="btn btn-xs" :class="typeFilter === 'school' ? 'btn-primary' : 'btn-ghost'" type="button"
+        :value="`School (${routeTypeCounts.school})`" @click="typeFilter = 'school'"
       >
     </div>
 

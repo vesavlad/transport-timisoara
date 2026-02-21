@@ -7,26 +7,25 @@ import type {
   MapLayerMouseEvent,
   Map as MaplibreMap,
 } from 'maplibre-gl'
+import {
+  MglCircleLayer,
+  MglFillLayer,
+  MglGeoJsonSource,
+  MglLineLayer,
+  MglMap,
+  MglNavigationControl,
+  MglScaleControl,
+  MglSymbolLayer,
+} from '@indoorequal/vue-maplibre-gl'
 import { useGeolocation } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 
-import {
-  MglMap,
-  MglSymbolLayer,
-  MglCircleLayer,
-  MglRasterLayer,
-  MglLineLayer,
-  MglScaleControl,
-  MglNavigationControl,
-} from 'vue-maplibre-gl'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import { isDark } from '~/composables/dark'
 import { getMapConfig } from '~/data/client'
 import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '~/data/hooks'
 import { useMapStore } from '~/state/mapStore'
-
-import { ensureLayer, setLayerVisibility, upsertGeoJsonSource } from './layers'
 
 function asFeatureCollection(features: Feature[]): FeatureCollection<Geometry> {
   return { type: 'FeatureCollection', features }
@@ -49,11 +48,8 @@ function bboxFromLine(coords: Array<[number, number]>): LngLatBoundsLike {
   ]
 }
 
-const mapLoadCount = ref(0)
 const isMapLoaded = ref(false)
 const mapRef = shallowRef<MaplibreMap | null>(null)
-const styleListenerBound = ref(false)
-const layerInteractionsBound = ref(false)
 
 interface MapEventPayload<T = unknown> {
   type: string
@@ -62,40 +58,48 @@ interface MapEventPayload<T = unknown> {
   event: T
 }
 
+function onMapStyleImageMissing(payload: MapEventPayload<{ id: string }>) {
+  const map = payload.map
+  const missing = payload?.event?.id
+  const pinImages = [
+    { slug: 'transit-bike', url: '/assets/icons/bike.png' },
+
+    { slug: 'transit-subway', url: '/assets/icons/metro.png' },
+    { slug: 'transit-metro', url: '/assets/icons/metro-stop.png' },
+    { slug: 'transit-bus', url: '/assets/icons/bus-stop.png' },
+    { slug: 'transit-school_bus', url: '/assets/icons/bus-special.png' },
+    { slug: 'transit-rail', url: '/assets/icons/train.png' },
+    { slug: 'transit-tram', url: '/assets/icons/tram.png' },
+    { slug: 'transit-trolley_bus', url: '/assets/icons/trolley.png' },
+    { slug: 'transit-mixed', url: '/assets/icons/mixed-stop.png' },
+
+    // { slug: 'transit-unknown', url: '/assets/icons/error.png' },
+
+    // Unused:
+    // {slug: 'transit-scooter', url: '/assets/icons/scooter.png'},
+  ]
+  for (const { slug, url } of pinImages) {
+    if (slug === missing && !map.hasImage(slug)) {
+      map.loadImage(url)
+        .then((response) => {
+          if (response && !map.hasImage(slug)) {
+            map?.addImage(slug, response.data, { sdf: false })
+          }
+        })
+        .catch((e) => {
+          console.error(`Failed to load map pin image ${slug} from ${url}:`, e)
+        })
+    }
+  }
+}
+
 function onMapLoad(payload: MapEventPayload) {
-  mapLoadCount.value++
   isMapLoaded.value = true
   mapRef.value = payload.map
-
-  if (!styleListenerBound.value) {
-    payload.map.on('styledata', onMapStyleData)
-    styleListenerBound.value = true
-  }
-
-  initSourcesAndLayers(payload.map)
 }
-
-function onMapStyleData() {
-  const map = mapRef.value
-  if (!map || !map.isStyleLoaded())
-    return
-
-  // styledata can fire many times; rehydrate only if our overlay graph is missing.
-  if (map.getSource('routes-src') && map.getLayer('routes-line') && map.getLayer('stops-pin'))
-    return
-
-  initSourcesAndLayers(map)
-}
-
-onBeforeUnmount(() => {
-  const map = mapRef.value
-  if (!map || !styleListenerBound.value)
-    return
-  map.off('styledata', onMapStyleData)
-})
 
 const store = useMapStore()
-const { selectedRouteId, selectedDirection, layers, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
+const { selectedRouteId, selectedDirection, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
 const routesQuery = useRoutes()
 const allRouteShapesQuery = useAllRouteShapes()
@@ -152,17 +156,12 @@ const userLocationFc = computed(() => {
     {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [circle] },
-      properties: {
-        kind: 'accuracy',
-      },
+      properties: { kind: 'accuracy' },
     },
     {
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
-      properties: {
-        kind: 'user',
-        accuracy: Math.round(p.accuracy),
-      },
+      properties: { kind: 'user', accuracy: Math.round(p.accuracy) },
     },
   ] as Feature[])
 })
@@ -244,115 +243,63 @@ const vehiclesFc = computed(() => {
 const { styleUrl, lightStyleUrl, darkStyleUrl } = getMapConfig()
 const activeStyleUrl = computed(() => (isDark.value ? darkStyleUrl : lightStyleUrl || styleUrl))
 
-const STATION_PIN_IMAGE_ID = 'station-pin'
+// Layer visibility helpers
+const routesLayout = computed(() => ({
+  'line-join': 'round' as const,
+  'line-cap': 'round' as const,
+  'visibility': 'visible' as const,
+}))
 
-function ensureStationPinImage(map: MaplibreMap) {
-  if (map.hasImage(STATION_PIN_IMAGE_ID))
-    return
+const stopsLayout = computed(() => ({
+  'icon-image': 'transit-mixed',
+  'icon-anchor': 'bottom' as const,
+  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.10, 13, 0.15, 16, 0.3] as any,
+  'icon-allow-overlap': true,
+  'icon-ignore-placement': true,
+  'visibility': 'visible' as const,
+}))
 
-  const size = 96
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
+const stopsLabelLayout = computed(() => ({
+  'text-field': ['get', 'name'] as any,
+  'text-size': 12,
+  'text-offset': [0, 1.2] as [number, number],
+  'text-anchor': 'top' as const,
+  'text-allow-overlap': false,
+  'visibility': 'visible' as const,
+}))
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx)
-    return
+// Paint specs
+const routesCasingPaint = computed(() => ({
+  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
+  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 12, 8] as any,
+  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.3, 0.2] as any,
+  'line-blur': 1.2,
+}))
 
-  const signW = 46
-  const signH = 56
-  const signX = 22
-  const signY = 6
-  const signRadius = 14
-  const signCenterX = signX + signW / 2
-  const signBottomY = signY + signH
-  const tipX = size / 2
-  const tipY = size - 7
+const routesLinePaint = computed(() => ({
+  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
+  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
+  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
+}))
 
-  // soft shadow under marker
-  ctx.fillStyle = 'rgba(11, 18, 32, 0.22)'
-  ctx.beginPath()
-  ctx.ellipse(tipX, size - 3, 10, 3.2, 0, 0, Math.PI * 2)
-  ctx.fill()
-
-  // white pole leaning slightly to the right
-  ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = 8
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(signCenterX + 6, signBottomY - 1)
-  ctx.lineTo(tipX, tipY - 6.5)
-  ctx.stroke()
-
-  // visible blue tip at bottom of the pin
-  ctx.fillStyle = '#0ea5e9'
-  ctx.beginPath()
-  ctx.arc(tipX, tipY, 6.5, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.lineWidth = 2.5
-  ctx.strokeStyle = '#e0f2fe'
-  ctx.stroke()
-
-  // sign outer ring
-  ctx.fillStyle = '#dbeafe'
-  ctx.beginPath()
-  ctx.roundRect(signX, signY, signW, signH, signRadius)
-  ctx.fill()
-
-  // sign body
-  ctx.fillStyle = '#0284c7'
-  ctx.beginPath()
-  ctx.roundRect(signX + 3, signY + 3, signW - 6, signH - 6, signRadius - 3)
-  ctx.fill()
-
-  // simple tram glyph (white)
-  const gx = signX + 13
-  const gy = signY + 14
-  const gw = 20
-  const gh = 22
-  ctx.strokeStyle = '#ffffff'
-  ctx.lineWidth = 2.5
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.roundRect(gx, gy, gw, gh, 5)
-  ctx.stroke()
-
-  // windows and bumper
-  ctx.beginPath()
-  ctx.moveTo(gx + 5, gy + 7)
-  ctx.lineTo(gx + gw - 5, gy + 7)
-  ctx.moveTo(gx + 10, gy + gh)
-  ctx.lineTo(gx + 10, gy + gh + 4)
-  ctx.stroke()
-
-  // wheels
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.arc(gx + 5, gy + gh + 2, 1.8, 0, Math.PI * 2)
-  ctx.arc(gx + gw - 5, gy + gh + 2, 1.8, 0, Math.PI * 2)
-  ctx.fill()
-
-  // light highlight on top-left
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)'
-  ctx.lineWidth = 1.5
-  ctx.beginPath()
-  ctx.moveTo(signX + 10, signY + 8)
-  ctx.lineTo(signX + signW - 18, signY + 8)
-  ctx.stroke()
-
-  const imageData = ctx.getImageData(0, 0, size, size)
-  map.addImage(STATION_PIN_IMAGE_ID, imageData, { pixelRatio: 2 })
-}
-
-const vehiclesCirclePaint = {
-  'circle-radius': ['case', ['boolean', ['get', 'isSelected'], false], 10, ['interpolate', ['linear'], ['zoom'], 10, 6, 14, 8]] as any,
+const vehiclesCirclePaint = computed(() => ({
+  'circle-radius': [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    10,
+    6,
+    14,
+    8,
+    16,
+    9,
+  ] as any,
   'circle-color': ['case', ['boolean', ['get', 'isSelected'], false], '#f43f5e', '#f97316'] as any,
   'circle-stroke-color': '#fff7ed',
   'circle-stroke-width': ['case', ['boolean', ['get', 'isSelected'], false], 3, 2] as any,
   'circle-blur': 0.06,
   'circle-opacity': 0.97,
-} satisfies CircleLayerSpecification['paint']
+} satisfies CircleLayerSpecification['paint']))
 
 const userLocationAccuracyPaint = {
   'fill-color': '#22d3ee',
@@ -365,6 +312,13 @@ const userLocationPointPaint = {
   'circle-stroke-color': '#ffffff',
   'circle-stroke-width': 2,
 } satisfies CircleLayerSpecification['paint']
+
+const stopsLabelPaint = {
+  'text-color': '#f8fafc',
+  'text-halo-color': '#0f172a',
+  'text-halo-width': 1.8,
+  'text-halo-blur': 0.8,
+}
 
 function getStringProperty(e: MapLayerMouseEvent, name: string): string | null {
   const feature = e.features?.[0]
@@ -424,163 +378,6 @@ watch(
   },
   { immediate: true },
 )
-
-// Keep sources in sync with data.
-watch(
-  [isMapLoaded, allRoutesFc, stopsFc, vehiclesFc, userLocationFc],
-  ([loaded]) => {
-    const map = mapRef.value
-    if (!loaded || !map)
-      return
-    upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
-    upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
-    upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
-    upsertGeoJsonSource(map, 'user-location-src', userLocationFc.value as any)
-  },
-  { deep: false },
-)
-
-watch(
-  layers,
-  (next) => {
-    const map = mapRef.value
-    if (!isMapLoaded.value || !map)
-      return
-    setLayerVisibility(map, 'routes-line-casing', next.routes)
-    setLayerVisibility(map, 'routes-line', next.routes)
-    setLayerVisibility(map, 'stops-pin', next.stops)
-    setLayerVisibility(map, 'stops-label', next.stops)
-    setLayerVisibility(map, 'vehicles-circle', next.vehicles)
-  },
-  { deep: true },
-)
-
-function initSourcesAndLayers(map: MaplibreMap) {
-  ensureStationPinImage(map)
-
-  // Sources
-  upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
-  upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
-  upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
-  upsertGeoJsonSource(map, 'user-location-src', userLocationFc.value as any)
-
-  // Layers
-  ensureLayer(map, {
-    id: 'routes-line-casing',
-    type: 'line',
-    source: 'routes-src',
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round',
-    },
-    paint: {
-      'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-      'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 12, 8] as any,
-      'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.3, 0.2] as any,
-      'line-blur': 1.2,
-    },
-  } as any)
-
-  ensureLayer(map, {
-    id: 'routes-line',
-    type: 'line',
-    source: 'routes-src',
-    layout: {
-      'line-join': 'round',
-      'line-cap': 'round',
-    },
-    paint: {
-      'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-      'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
-      'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
-    },
-  } as any)
-
-  ensureLayer(map, {
-    id: 'stops-pin',
-    type: 'symbol',
-    source: 'stops-src',
-    layout: {
-      'icon-image': STATION_PIN_IMAGE_ID,
-      'icon-anchor': 'bottom',
-      'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.65, 16, 0.85] as any,
-      'icon-allow-overlap': true,
-      'icon-ignore-placement': true,
-    },
-    paint: {
-      'icon-opacity': 1,
-    },
-  } as any)
-
-  ensureLayer(map, {
-    id: 'stops-label',
-    type: 'symbol',
-    source: 'stops-src',
-    minzoom: 13,
-    layout: {
-      'text-field': ['get', 'name'] as any,
-      'text-size': 12,
-      'text-offset': [0, 1.2],
-      'text-anchor': 'top',
-      'text-allow-overlap': false,
-      'visibility': 'visible',
-    },
-    paint: {
-      'text-color': '#f8fafc',
-      'text-halo-color': '#0f172a',
-      'text-halo-width': 1.8,
-      'text-halo-blur': 0.8,
-    },
-  } as any)
-
-  ensureLayer(map, {
-    id: 'vehicles-circle',
-    type: 'circle',
-    source: 'vehicles-src',
-    paint: vehiclesCirclePaint as any,
-  } as any)
-
-  ensureLayer(map, {
-    id: 'user-location-accuracy',
-    type: 'fill',
-    source: 'user-location-src',
-    filter: ['==', ['get', 'kind'], 'accuracy'] as any,
-    paint: userLocationAccuracyPaint as any,
-  } as any)
-
-  ensureLayer(map, {
-    id: 'user-location-point',
-    type: 'circle',
-    source: 'user-location-src',
-    filter: ['==', ['get', 'kind'], 'user'] as any,
-    paint: userLocationPointPaint as any,
-  } as any)
-
-  // Apply current visibility toggles
-  setLayerVisibility(map, 'routes-line-casing', layers.value.routes)
-  setLayerVisibility(map, 'routes-line', layers.value.routes)
-  setLayerVisibility(map, 'stops-pin', layers.value.stops)
-  setLayerVisibility(map, 'stops-label', layers.value.stops)
-  setLayerVisibility(map, 'vehicles-circle', layers.value.vehicles)
-
-  if (!layerInteractionsBound.value) {
-    // Interactions
-    map.on('click', 'routes-line', e => onRouteClick(e as any))
-    map.on('click', 'stops-pin', e => onStopClick(e as any))
-    map.on('click', 'vehicles-circle', e => onVehicleClick(e as any))
-
-    for (const id of ['routes-line', 'stops-pin', 'vehicles-circle'] as const) {
-      map.on('mouseenter', id, () => {
-        map.getCanvas().style.cursor = 'pointer'
-      })
-      map.on('mouseleave', id, () => {
-        map.getCanvas().style.cursor = ''
-      })
-    }
-
-    layerInteractionsBound.value = true
-  }
-}
 </script>
 
 <template>
@@ -591,13 +388,65 @@ function initSourcesAndLayers(map: MaplibreMap) {
       :center="[21.2272, 45.7489]"
       :zoom="13"
       :attribution-control="false"
-      class="h-full w-full vibrant-map"
+      @map:styleimagemissing="onMapStyleImageMissing"
       @map:load="onMapLoad"
     >
-      <MglScaleControl position="bottom-right"/>
+      <MglScaleControl position="bottom-right" />
       <MglNavigationControl v-if="false" position="bottom-right" :visualize-pitch="true" />
-      <MglLineLayer />
-      <MglSymbolLayer :source="vehiclesFc"/>
+
+      <!-- Routes source + layers -->
+      <MglGeoJsonSource source-id="routes-src" :data="allRoutesFc">
+        <MglLineLayer
+          layer-id="routes-line-casing"
+          :layout="routesLayout"
+          :paint="routesCasingPaint"
+          @click="onRouteClick"
+        />
+        <MglLineLayer
+          layer-id="routes-line"
+          :layout="routesLayout"
+          :paint="routesLinePaint"
+          @click="onRouteClick"
+        />
+      </MglGeoJsonSource>
+
+      <!-- Stops source + layers -->
+      <MglGeoJsonSource source-id="stops-src" :data="stopsFc">
+        <MglSymbolLayer
+          layer-id="stops-symbol"
+          :layout="stopsLayout"
+          :paint="{ 'icon-opacity': 1 }"
+          @click="onStopClick"
+        />
+        <MglSymbolLayer
+          layer-id="stops-label"
+          :layout="stopsLabelLayout"
+          :paint="stopsLabelPaint"
+        />
+      </MglGeoJsonSource>
+
+      <!-- Vehicles source + layer -->
+      <MglGeoJsonSource source-id="vehicles-src" :data="vehiclesFc">
+        <MglCircleLayer
+          layer-id="vehicles"
+          :paint="vehiclesCirclePaint"
+          @click="onVehicleClick"
+        />
+      </MglGeoJsonSource>
+
+      <!-- User location source + layers -->
+      <MglGeoJsonSource source-id="user-location-src" :data="userLocationFc">
+        <MglFillLayer
+          layer-id="user-location-accuracy"
+          :filter="['==', ['get', 'kind'], 'accuracy']"
+          :paint="userLocationAccuracyPaint"
+        />
+        <MglCircleLayer
+          layer-id="user-location-point"
+          :filter="['==', ['get', 'kind'], 'user']"
+          :paint="userLocationPointPaint"
+        />
+      </MglGeoJsonSource>
     </MglMap>
   </div>
 </template>
