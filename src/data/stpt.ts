@@ -14,10 +14,32 @@ export interface StptLine {
 
 export type StptLinesConfig = Record<string, StptLine>
 
-const CATEGORY_COLORS: Record<string, string> = {
-  tramvai: '#2563eb', // blue
-  troleibuz: '#16a34a', // green
-  autobuz: '#f97316', // orange
+export interface StopsByDirection {
+  tur: Stop[]
+  retur: Stop[]
+}
+
+const ROUTE_COLOR_PALETTE = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#14b8a6', // teal
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#64748b', // slate
+]
+
+function stableColorFromRouteId(routeId: string) {
+  // Deterministic hash -> palette index, so colors stay stable across refreshes.
+  let hash = 0
+  for (let i = 0; i < routeId.length; i++) {
+    hash = ((hash << 5) - hash) + routeId.charCodeAt(i)
+    hash |= 0
+  }
+  const index = Math.abs(hash) % ROUTE_COLOR_PALETTE.length
+  return ROUTE_COLOR_PALETTE[index] ?? '#94a3b8'
 }
 
 function directionWithCoords(line: StptLine): StptDirection | null {
@@ -37,15 +59,12 @@ export function stptLinesConfigToRoutes(config: StptLinesConfig): Route[] {
   const c = collator()
   return Object.entries(config)
     .sort(([a], [b]) => c.compare(a, b))
-    .map(([id, line]) => {
-      const category = (line.category ?? '').trim()
-      const color = CATEGORY_COLORS[category] ?? '#94a3b8'
-
+    .map(([id]) => {
       return {
         id,
         shortName: String(id),
-        longName: category ? `${category} ${id}` : String(id),
-        color,
+        longName: String(id),
+        color: stableColorFromRouteId(String(id)),
       } satisfies Route
     })
 }
@@ -82,6 +101,46 @@ function approxStopCoord(
   return coords[clamped] ?? null
 }
 
+function mapDirectionStops(dir: StptDirection | undefined): Stop[] {
+  if (!dir)
+    return []
+
+  const names = Array.isArray(dir.stations) ? dir.stations : []
+  const ids = Array.isArray(dir.ids) ? dir.ids : []
+  const total = Math.min(names.length, ids.length)
+
+  const out: Stop[] = []
+  for (let i = 0; i < total; i++) {
+    const id = String(ids[i] ?? '')
+    if (!id)
+      continue
+
+    const name = String(names[i] ?? id)
+    const coord = approxStopCoord(dir.coords ?? [], i, total)
+    if (!coord)
+      continue
+
+    const [lon, lat] = coord
+    out.push({ id, name, lat, lon })
+  }
+
+  return out
+}
+
+export function stptLinesConfigToStopsByDirection(
+  config: StptLinesConfig,
+  routeId: string,
+): StopsByDirection {
+  const line = config[routeId]
+  if (!line)
+    return { tur: [], retur: [] }
+
+  return {
+    tur: mapDirectionStops(line.tur),
+    retur: mapDirectionStops(line.retur),
+  }
+}
+
 /**
  * Convert STPT station lists to Stop[].
  *
@@ -92,31 +151,16 @@ export function stptLinesConfigToStops(
   config: StptLinesConfig,
   routeId: string,
 ): Stop[] {
-  const line = config[routeId]
-  if (!line)
-    return []
-  const dir = directionWithCoords(line)
-  if (!dir)
-    return []
-
-  const names = Array.isArray(dir.stations) ? dir.stations : []
-  const ids = Array.isArray(dir.ids) ? dir.ids : []
-  const total = Math.min(names.length, ids.length)
+  const grouped = stptLinesConfigToStopsByDirection(config, routeId)
+  const combined = [...grouped.tur, ...grouped.retur]
 
   // De-dupe by station id while keeping first occurrence.
   const byId = new Map<string, Stop>()
-  for (let i = 0; i < total; i++) {
-    const id = String(ids[i] ?? '')
+  for (const stop of combined) {
+    const id = String(stop.id ?? '')
     if (!id || byId.has(id))
       continue
-
-    const name = String(names[i] ?? id)
-    const coord = approxStopCoord(dir.coords ?? [], i, total)
-    if (!coord)
-      continue
-
-    const [lon, lat] = coord
-    byId.set(id, { id, name, lat, lon })
+    byId.set(id, stop)
   }
 
   return [...byId.values()]

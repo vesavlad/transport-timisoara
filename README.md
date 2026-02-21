@@ -18,6 +18,7 @@ Cross-platform public transportation map (desktop + mobile via PWA) that visuali
 The app currently runs on **mock data**. When you set `VITE_TRANSIT_API_BASE_URL`, the data layer is ready for a vendor adapter to be implemented.
 
 If you set `VITE_LINES_CONFIG_URL`, the app can also use **STPT live route config** (`lines-config.json`) as an input source for routes + shapes.
+Live vehicle status/location can be pulled from **STPT GTFS vehicles** (`gtfs-vehicles.php`).
 
 ## Run locally
 
@@ -64,10 +65,12 @@ To periodically fetch STPT’s route config:
 
 - `VITE_LINES_CONFIG_URL` (example: `https://live.stpt.ro/lines-config.json`)
 - `VITE_LINES_CONFIG_REFETCH_MS` (default: 900000 = 15 minutes)
+- `VITE_STPT_VEHICLES_URL` (default: `https://live.stpt.ro/gtfs-vehicles.php`)
 
 Notes:
 
 - In **dev**, if the direct URL is blocked by CORS, set `VITE_LINES_CONFIG_URL=/stpt/lines-config.json` to use the built-in dev proxy.
+- In **dev**, if needed, set `VITE_STPT_VEHICLES_URL=/stpt/gtfs-vehicles.php` to use the built-in dev proxy for vehicle data.
 - `lines-config.json` does not include precise station coordinates; stop marker positions are approximated along the polyline for now.
 
 ## UX structure (current)

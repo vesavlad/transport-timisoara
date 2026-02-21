@@ -38,6 +38,15 @@ export default defineConfig({
         secure: true,
         rewrite: path => path.replace(/^\/stpt/, ''),
       },
+
+      // Dev-only proxy for STPT live vehicles.
+      // Example: /stpt/gtfs-vehicles.php -> https://live.stpt.ro/gtfs-vehicles.php
+      '/stpt/gtfs-vehicles.php': {
+        target: 'https://live.stpt.ro',
+        changeOrigin: true,
+        secure: true,
+        rewrite: () => '/gtfs-vehicles.php',
+      },
     },
   },
   plugins: [

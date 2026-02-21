@@ -27,6 +27,7 @@ export function getStptConfig() {
   return {
     linesConfigUrl: optionalEnv('VITE_LINES_CONFIG_URL'),
     linesConfigRefetchMs: parseMs(optionalEnv('VITE_LINES_CONFIG_REFETCH_MS'), 15 * 60 * 1000),
+    vehiclesUrl: optionalEnv('VITE_STPT_VEHICLES_URL') || 'https://live.stpt.ro/gtfs-vehicles.php',
   }
 }
 
@@ -35,8 +36,8 @@ export function getMapConfig() {
   // Default: CARTO Voyager (OSM-based) so streets/land cover are visible out of the box.
   return {
     styleUrl:
-			optionalEnv('VITE_MAP_STYLE_URL')
-			|| 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+      optionalEnv('VITE_MAP_STYLE_URL')
+      || 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   }
 }
 

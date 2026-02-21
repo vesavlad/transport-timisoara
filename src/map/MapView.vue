@@ -2,6 +2,7 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import type {
   CircleLayerSpecification,
+  FillLayerSpecification,
   LineLayerSpecification,
   LngLatBoundsLike,
   MapLayerMouseEvent,
@@ -9,6 +10,7 @@ import type {
   Map as MaplibreMap,
   SymbolLayerSpecification,
 } from 'maplibre-gl'
+import { useGeolocation } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -115,12 +117,15 @@ const mapDebug = computed(() => {
       routes: hasSource('routes-src'),
       stops: hasSource('stops-src'),
       vehicles: hasSource('vehicles-src'),
+      userLocation: hasSource('user-location-src'),
     },
     layers: {
       routes: `${hasLayer('routes-line')} (${visibility('routes-line')})`,
       stops: `${hasLayer('stops-circle')} (${visibility('stops-circle')})`,
       stopsLabel: `${hasLayer('stops-label')} (${visibility('stops-label')})`,
       vehicles: `${hasLayer('vehicles-circle')} (${visibility('vehicles-circle')})`,
+      userLocationAccuracy: `${hasLayer('user-location-accuracy')} (${visibility('user-location-accuracy')})`,
+      userLocationPoint: `${hasLayer('user-location-point')} (${visibility('user-location-point')})`,
     },
   }
 })
@@ -133,6 +138,70 @@ const allRouteShapesQuery = useAllRouteShapes()
 const routeShapeQuery = useRouteShape(selectedRouteId)
 const stopsQuery = useStops(selectedRouteId)
 const vehiclesQuery = useVehicles(selectedRouteId)
+const geolocation = useGeolocation({
+  enableHighAccuracy: true,
+  maximumAge: 10_000,
+  timeout: 10_000,
+})
+
+function toAccuracyPolygon(lon: number, lat: number, radiusMeters: number, steps = 48): Array<[number, number]> {
+  const safeMeters = Math.max(5, radiusMeters)
+  const latRad = (lat * Math.PI) / 180
+  const cosLat = Math.max(0.0001, Math.cos(latRad))
+
+  const dLat = safeMeters / 111_320
+  const dLon = safeMeters / (111_320 * cosLat)
+
+  const ring: Array<[number, number]> = []
+  for (let i = 0; i < steps; i++) {
+    const t = (i / steps) * Math.PI * 2
+    const x = Math.cos(t)
+    const y = Math.sin(t)
+    ring.push([lon + dLon * x, lat + dLat * y])
+  }
+  ring.push(ring[0] ?? [lon, lat])
+  return ring
+}
+
+const userLocationPoint = computed(() => {
+  const lon = Number(geolocation.coords.value.longitude)
+  const lat = Number(geolocation.coords.value.latitude)
+  const accuracy = Number(geolocation.coords.value.accuracy)
+
+  if (!Number.isFinite(lon) || !Number.isFinite(lat))
+    return null
+
+  return {
+    lon,
+    lat,
+    accuracy: Number.isFinite(accuracy) && accuracy > 0 ? accuracy : 30,
+  }
+})
+
+const userLocationFc = computed(() => {
+  const p = userLocationPoint.value
+  if (!p)
+    return asFeatureCollection([])
+
+  const circle = toAccuracyPolygon(p.lon, p.lat, p.accuracy)
+  return asFeatureCollection([
+    {
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [circle] },
+      properties: {
+        kind: 'accuracy',
+      },
+    },
+    {
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+      properties: {
+        kind: 'user',
+        accuracy: Math.round(p.accuracy),
+      },
+    },
+  ] as Feature[])
+})
 
 const routeColorById = computed(() => {
   const map = new Map<string, string>()
@@ -229,6 +298,18 @@ const vehiclesCirclePaint = {
   'circle-stroke-width': 2,
 } satisfies CircleLayerSpecification['paint']
 
+const userLocationAccuracyPaint = {
+  'fill-color': '#3b82f6',
+  'fill-opacity': 0.16,
+} satisfies FillLayerSpecification['paint']
+
+const userLocationPointPaint = {
+  'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 13, 7, 16, 9] as any,
+  'circle-color': '#2563eb',
+  'circle-stroke-color': '#ffffff',
+  'circle-stroke-width': 2,
+} satisfies CircleLayerSpecification['paint']
+
 function getStringProperty(e: MapLayerMouseEvent, name: string): string | null {
   const feature = e.features?.[0]
   const props = feature?.properties
@@ -290,7 +371,7 @@ watch(
 
 // Keep sources in sync with data.
 watch(
-  [isMapLoaded, allRoutesFc, stopsFc, vehiclesFc],
+  [isMapLoaded, allRoutesFc, stopsFc, vehiclesFc, userLocationFc],
   ([loaded]) => {
     const map = mapRef.value
     if (!loaded || !map)
@@ -298,6 +379,7 @@ watch(
     upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
     upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
     upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
+    upsertGeoJsonSource(map, 'user-location-src', userLocationFc.value as any)
   },
   { deep: false },
 )
@@ -321,6 +403,7 @@ function initSourcesAndLayers(map: MaplibreMap) {
   upsertGeoJsonSource(map, 'routes-src', allRoutesFc.value as any)
   upsertGeoJsonSource(map, 'stops-src', stopsFc.value as any)
   upsertGeoJsonSource(map, 'vehicles-src', vehiclesFc.value as any)
+  upsertGeoJsonSource(map, 'user-location-src', userLocationFc.value as any)
 
   // Layers
   ensureLayer(map, {
@@ -360,6 +443,22 @@ function initSourcesAndLayers(map: MaplibreMap) {
     paint: vehiclesCirclePaint as any,
   } as any)
 
+  ensureLayer(map, {
+    id: 'user-location-accuracy',
+    type: 'fill',
+    source: 'user-location-src',
+    filter: ['==', ['get', 'kind'], 'accuracy'] as any,
+    paint: userLocationAccuracyPaint as any,
+  } as any)
+
+  ensureLayer(map, {
+    id: 'user-location-point',
+    type: 'circle',
+    source: 'user-location-src',
+    filter: ['==', ['get', 'kind'], 'user'] as any,
+    paint: userLocationPointPaint as any,
+  } as any)
+
   // Apply current visibility toggles
   setLayerVisibility(map, 'routes-line', layers.value.routes)
   setLayerVisibility(map, 'stops-circle', layers.value.stops)
@@ -385,6 +484,7 @@ function initSourcesAndLayers(map: MaplibreMap) {
 <template>
   <div class="relative h-full w-full">
     <div
+      v-if="false"
       class="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded-box border border-base-300 bg-base-100/85 px-2 py-1 text-xs text-base-content backdrop-blur"
     >
       <div class="font-semibold">
@@ -412,11 +512,20 @@ function initSourcesAndLayers(map: MaplibreMap) {
         style: {{ styleUrl }}
       </div>
       <div>
-        src: r {{ mapDebug.sources.routes }}, s {{ mapDebug.sources.stops }}, v {{ mapDebug.sources.vehicles }}
+        src: r {{ mapDebug.sources.routes }}, s {{ mapDebug.sources.stops }}, v {{ mapDebug.sources.vehicles }}, u {{
+          mapDebug.sources.userLocation }}
       </div>
       <div>
         lyr: r {{ mapDebug.layers.routes }}, s {{ mapDebug.layers.stops }}, sl {{ mapDebug.layers.stopsLabel
-        }}, v {{ mapDebug.layers.vehicles }}
+        }}, v {{ mapDebug.layers.vehicles }}, ua {{ mapDebug.layers.userLocationAccuracy }}, up {{
+          mapDebug.layers.userLocationPoint }}
+      </div>
+      <div>
+        my location: {{ userLocationPoint ? `${userLocationPoint.lat.toFixed(5)}, ${userLocationPoint.lon.toFixed(5)}`
+          : 'waiting for permission/location…' }}
+      </div>
+      <div v-if="geolocation.error.value" class="mt-1 text-warning">
+        geolocation: {{ geolocation.error.value.message }}
       </div>
       <div v-if="lastMapError" class="mt-1 text-error">
         error: {{ lastMapError }}
@@ -424,11 +533,16 @@ function initSourcesAndLayers(map: MaplibreMap) {
     </div>
 
     <MglMap
-      :map-style="styleUrl" width="100%" height="100%" :track-resize="true" :center="initialCenter"
-      :zoom="initialZoom" :attribution-control="{ compact: true }" class="h-full w-full" @map:load="onMapLoad"
+      :map-style="styleUrl"
+      :track-resize="true"
+      :center="initialCenter"
+      :zoom="initialZoom"
+      :attribution-control="{ compact: true }"
+      class="h-full w-full"
+      @map:load="onMapLoad"
       @map:error="onMapError"
     >
-      <MglNavigationControl position="top-right" :visualize-pitch="true" />
+      <MglNavigationControl position="bottom-right" :visualize-pitch="true" />
     </MglMap>
   </div>
 </template>

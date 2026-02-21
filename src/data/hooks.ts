@@ -12,9 +12,26 @@ import {
 } from './mock'
 import {
   stptLinesConfigToRoutes,
-  stptLinesConfigToRouteShape,
   stptLinesConfigToStops,
+  stptLinesConfigToStopsByDirection,
 } from './stpt'
+
+interface StptLiveVehicleRaw {
+  id?: string | number
+  lat?: number | string
+  lng?: number | string
+  bearing?: number | string
+  route?: string | number
+  timestamp?: number | string
+  headsign?: string
+}
+
+interface StptLiveVehiclesResponse {
+  success?: boolean
+  data?: {
+    vehicles?: StptLiveVehicleRaw[]
+  }
+}
 
 type StptRouteDirection = 'tur' | 'retur'
 
@@ -177,6 +194,70 @@ function makeStptRouteGeoJsonGetter(queryClient: ReturnType<typeof useQueryClien
     })
 }
 
+function normalizeRouteId(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function parseFiniteNumber(value: unknown): number | null {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function parseStptTimestampMs(value: unknown): number {
+  const ts = parseFiniteNumber(value)
+  if (ts == null)
+    return Date.now()
+  // If provider ever sends seconds, normalize to milliseconds.
+  return ts < 1e12 ? ts * 1000 : ts
+}
+
+async function fetchStptLiveVehicles(stptVehiclesUrl: string): Promise<StptLiveVehiclesResponse> {
+  const isDev = import.meta.env.DEV
+  const looksLikeStpt = /^https?:\/\/live\.stpt\.ro\//i.test(stptVehiclesUrl)
+
+  // In dev, if pointing at STPT directly, use the Vite proxy first to avoid
+  // an initial failed CORS request followed by a retry.
+  const effectiveUrl = isDev && looksLikeStpt
+    ? '/stpt/gtfs-vehicles.php'
+    : stptVehiclesUrl
+
+  return await fetchJson<StptLiveVehiclesResponse>(effectiveUrl)
+}
+
+function mapStptLiveVehicles(routeId: string, payload: StptLiveVehiclesResponse): Vehicle[] {
+  const normalizedTarget = normalizeRouteId(routeId)
+  const items = Array.isArray(payload?.data?.vehicles) ? payload.data!.vehicles! : []
+  const out: Vehicle[] = []
+
+  for (const item of items) {
+    const itemRoute = String(item?.route ?? '')
+    if (!itemRoute || normalizeRouteId(itemRoute) !== normalizedTarget)
+      continue
+
+    const lat = parseFiniteNumber(item?.lat)
+    const lon = parseFiniteNumber(item?.lng)
+    if (lat == null || lon == null)
+      continue
+
+    const id = String(item?.id ?? '').trim()
+    if (!id)
+      continue
+
+    const heading = parseFiniteNumber(item?.bearing) ?? undefined
+    out.push({
+      id,
+      routeId,
+      label: item?.headsign ? `${id} • ${item.headsign}` : id,
+      lat,
+      lon,
+      heading,
+      updatedAt: parseStptTimestampMs(item?.timestamp),
+    })
+  }
+
+  return out
+}
+
 export function useRoutes() {
   const source = getDataSource()
   const stpt = getStptConfig()
@@ -310,47 +391,39 @@ export function useStops(routeId: Ref<string | null>) {
   })
 }
 
-export function useVehicles(routeId: Ref<string | null>) {
+export function useStopsByDirection(routeId: Ref<string | null>) {
   const source = getDataSource()
+  const stpt = getStptConfig()
   const qc = useQueryClient()
   const getLinesConfig = makeStptLinesConfigGetter(qc)
 
-  function lerp(a: number, b: number, t: number) {
-    return a + (b - a) * t
-  }
+  return useQuery<{ tur: Stop[], retur: Stop[] }>({
+    enabled: computed(() => !!routeId.value),
+    queryKey: computed(() => ['stopsByDirection', routeId.value, source]),
+    queryFn: async () => {
+      if (!routeId.value)
+        return { tur: [], retur: [] }
 
-  function pointOnLine(coords: Array<[number, number]>, t: number): [number, number] {
-    if (coords.length === 0)
-      return [0, 0]
-    if (coords.length === 1)
-      return coords[0]!
+      if (source === 'stpt') {
+        const cfg = await getLinesConfig()
+        return stptLinesConfigToStopsByDirection(cfg, routeId.value)
+      }
 
-    const totalSegments = coords.length - 1
-    const scaled = t * totalSegments
-    const seg = Math.min(totalSegments - 1, Math.max(0, Math.floor(scaled)))
-    const localT = scaled - seg
+      // Mock/vendor fallback: represent a single path as tur, reverse as retur.
+      const stops = await mockListStops(routeId.value)
+      return {
+        tur: stops,
+        retur: [...stops].reverse(),
+      }
+    },
+    refetchInterval: source === 'stpt' ? stpt.linesConfigRefetchMs : false,
+    staleTime: source === 'stpt' ? stpt.linesConfigRefetchMs : 0,
+  })
+}
 
-    const p1 = coords[seg]!
-    const p2 = coords[seg + 1]!
-    const [lon1, lat1] = p1
-    const [lon2, lat2] = p2
-    return [lerp(lon1, lon2, localT), lerp(lat1, lat2, localT)]
-  }
-
-  function simulateVehicles(routeIdValue: string, coords: Array<[number, number]>): Vehicle[] {
-    const now = Date.now()
-    // Two vehicles chasing each other along the same line.
-    const t1 = ((now / 1000) % 120) / 120
-    const t2 = (((now / 1000) + 40) % 120) / 120
-
-    const [lonA, latA] = pointOnLine(coords, t1)
-    const [lonB, latB] = pointOnLine(coords, t2)
-
-    return [
-      { id: `${routeIdValue}:V1`, routeId: routeIdValue, label: 'Vehicle 1', lat: latA, lon: lonA, updatedAt: now },
-      { id: `${routeIdValue}:V2`, routeId: routeIdValue, label: 'Vehicle 2', lat: latB, lon: lonB, updatedAt: now },
-    ]
-  }
+export function useVehicles(routeId: Ref<string | null>) {
+  const source = getDataSource()
+  const stpt = getStptConfig()
 
   return useQuery<Vehicle[]>({
     enabled: computed(() => !!routeId.value),
@@ -361,11 +434,8 @@ export function useVehicles(routeId: Ref<string | null>) {
       if (source === 'mock')
         return mockListVehicles(routeId.value)
       if (source === 'stpt') {
-        const cfg = await getLinesConfig()
-        const shape = stptLinesConfigToRouteShape(cfg, routeId.value)
-        if (!shape)
-          return []
-        return simulateVehicles(routeId.value, shape.coordinates)
+        const payload = await fetchStptLiveVehicles(stpt.vehiclesUrl)
+        return mapStptLiveVehicles(routeId.value, payload)
       }
       // TODO: implement vendor vehicles mapping
       return mockListVehicles(routeId.value)
