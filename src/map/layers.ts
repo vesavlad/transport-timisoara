@@ -13,7 +13,7 @@ export function upsertGeoJsonSource(
     })
     return
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // @typescript-eslint/no-explicit-any
   ;(existing as any).setData(data)
 }
 
