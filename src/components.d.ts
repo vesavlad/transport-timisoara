@@ -11,12 +11,16 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    HomePageContent: typeof import('./components/panel/HomePageContent.vue')['default']
     LayerToggles: typeof import('./components/LayerToggles.vue')['default']
     Panel: typeof import('./components/Panel.vue')['default']
     PanelContent: typeof import('./components/PanelContent.vue')['default']
+    RoutePageContent: typeof import('./components/panel/RoutePageContent.vue')['default']
     RoutePicker: typeof import('./components/RoutePicker.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    StatusState: typeof import('./components/StatusState.vue')['default']
+    StopPageContent: typeof import('./components/panel/StopPageContent.vue')['default']
     ToggleRow: typeof import('./components/ToggleRow.vue')['default']
     VehicleList: typeof import('./components/VehicleList.vue')['default']
   }

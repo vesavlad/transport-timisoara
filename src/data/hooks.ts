@@ -11,6 +11,7 @@ import {
   mockListVehicles,
 } from './mock'
 import {
+  isSchoolRouteId,
   stptLinesConfigToRoutes,
   stptLinesConfigToStops,
   stptLinesConfigToStopsByDirection,
@@ -43,6 +44,13 @@ export interface StopTimetablePreview {
   time: string | null
   minutes: number | null
   destination: string | null
+}
+
+export interface StopDeparture {
+  routeId: string
+  destination: string | null
+  time: string | null
+  minutes: number | null
 }
 
 type StptRouteDirection = 'tur' | 'retur'
@@ -261,6 +269,38 @@ function extractNextTimetableForRoute(
   }
 }
 
+function parseTimetableTime(first: unknown) {
+  const [hhmmRaw, minsRaw] = String(first ?? '').split('|')
+  const hhmm = String(hhmmRaw ?? '').trim() || null
+  const mins = Number.parseInt(String(minsRaw ?? '').trim(), 10)
+  return {
+    time: hhmm,
+    minutes: Number.isFinite(mins) ? mins : null,
+  }
+}
+
+function mapStopDepartures(payload: StptStopTimetableItem[]): StopDeparture[] {
+  const out: StopDeparture[] = []
+
+  for (const item of payload) {
+    const routeId = String(item?.route ?? '').trim()
+    if (!routeId)
+      continue
+
+    const first = Array.isArray(item?.times) ? item.times[0] : null
+    const parsed = parseTimetableTime(first)
+
+    out.push({
+      routeId,
+      destination: String(item?.destination ?? '').trim() || null,
+      time: parsed.time,
+      minutes: parsed.minutes,
+    })
+  }
+
+  return out
+}
+
 function mapStptLiveVehicles(routeId: string, payload: StptLiveVehiclesResponse): Vehicle[] {
   const normalizedTarget = normalizeRouteId(routeId)
   const items = Array.isArray(payload?.data?.vehicles) ? payload.data!.vehicles! : []
@@ -302,6 +342,8 @@ function mapAllStptLiveVehicles(payload: StptLiveVehiclesResponse): Vehicle[] {
   for (const item of items) {
     const routeId = String(item?.route ?? '').trim()
     if (!routeId)
+      continue
+    if (isSchoolRouteId(routeId))
       continue
 
     const lat = parseFiniteNumber(item?.lat)
@@ -559,6 +601,24 @@ export function useStopTimetables(
       )
 
       return Object.fromEntries(entries)
+    },
+    refetchInterval: 60_000,
+  })
+}
+
+export function useStopDepartures(stopId: Ref<string | null>) {
+  const source = getDataSource()
+  const stpt = getStptConfig()
+
+  return useQuery<StopDeparture[]>({
+    enabled: computed(() => source === 'stpt' && !!stopId.value),
+    queryKey: computed(() => ['stopDepartures', source, stopId.value]),
+    queryFn: async () => {
+      if (source !== 'stpt' || !stopId.value)
+        return []
+
+      const payload = await fetchStptStopTimetable(stpt.timetableUrl, stopId.value)
+      return mapStopDepartures(payload)
     },
     refetchInterval: 60_000,
   })

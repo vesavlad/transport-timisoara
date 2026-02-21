@@ -55,9 +55,24 @@ function collator() {
   return new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 }
 
+function isEnvTrue(value: unknown) {
+  return /^[1|trueys]$/i.test(String(value ?? '').trim())
+}
+
+export function isSchoolRouteId(routeId: string) {
+  return /^S/i.test(String(routeId ?? '').trim())
+}
+
+function shouldIncludeSchoolRoutes() {
+  return isEnvTrue(import.meta.env.VITE_INCLUDE_SCHOOL_ROUTES)
+}
+
 export function stptLinesConfigToRoutes(config: StptLinesConfig): Route[] {
   const c = collator()
+  const includeSchoolRoutes = shouldIncludeSchoolRoutes()
+
   return Object.entries(config)
+    .filter(([id]) => includeSchoolRoutes || !isSchoolRouteId(id))
     .sort(([a], [b]) => c.compare(a, b))
     .map(([id]) => {
       return {

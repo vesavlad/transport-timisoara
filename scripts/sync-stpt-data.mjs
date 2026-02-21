@@ -5,8 +5,14 @@ import process from 'node:process'
 
 const LINES_CONFIG_URL = process.env.STPT_LINES_CONFIG_URL || 'https://live.stpt.ro/lines-config.json'
 const ROUTES_BASE_URL = process.env.STPT_ROUTES_BASE_URL || 'https://live.stpt.ro/routes'
+const STPT_EXCLUDE_SCHOOL_ROUTES = /^(?:1|true|yes)$/i.test(process.env.STPT_EXCLUDE_SCHOOL_ROUTES || 'true')
+const STPT_SCHOOL_CATEGORY = process.env.STPT_SCHOOL_CATEGORY || 'Scholl'
 const OUT_DIR = path.resolve(process.cwd(), 'public/assets/stpt')
 const ROUTES_OUT_DIR = path.join(OUT_DIR, 'routes')
+
+function isSchoolRouteId(routeId) {
+  return /^S/i.test(String(routeId || '').trim())
+}
 
 async function fetchJson(url) {
   const res = await fetch(url)
@@ -35,6 +41,7 @@ async function main() {
   let downloaded = 0
   let failed = 0
   let removedRoutes = 0
+  let removedSchoolRoutes = 0
 
   for (const routeId of routeIds) {
     const encodedRoute = encodeURIComponent(routeId)
@@ -63,7 +70,20 @@ async function main() {
   }
 
   const filteredLinesConfig = Object.fromEntries(
-    Object.entries(linesConfig).filter(([routeId]) => keptRouteIds.has(routeId)),
+    Object.entries(linesConfig)
+      .filter(([routeId]) => keptRouteIds.has(routeId))
+      .flatMap(([routeId, line]) => {
+        if (isSchoolRouteId(routeId)) {
+          if (STPT_EXCLUDE_SCHOOL_ROUTES) {
+            removedSchoolRoutes++
+            return []
+          }
+
+          return [[routeId, { ...line, category: STPT_SCHOOL_CATEGORY }]]
+        }
+
+        return [[routeId, line]]
+      }),
   )
 
   const linesConfigPath = path.join(OUT_DIR, 'lines-config.json')
@@ -75,6 +95,10 @@ async function main() {
     console.log(`⚠ Route files skipped: ${failed}`)
   if (removedRoutes)
     console.log(`⚠ Routes removed from lines-config (no GeoJSON found): ${removedRoutes}`)
+  if (removedSchoolRoutes)
+    console.log(`⚠ School routes removed (prefix S): ${removedSchoolRoutes}`)
+  if (!STPT_EXCLUDE_SCHOOL_ROUTES)
+    console.log(`ℹ School routes are kept under category: ${STPT_SCHOOL_CATEGORY}`)
   console.log(`Done. Local STPT assets are in: ${path.relative(process.cwd(), OUT_DIR)}`)
 }
 

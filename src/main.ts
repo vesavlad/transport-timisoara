@@ -11,6 +11,7 @@ import { createApp, watchEffect } from 'vue'
 
 import App from './App.vue'
 import { isDark } from './composables/dark'
+import { router } from './router'
 // Global MapLibre + vue-maplibre-gl styles
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -35,6 +36,7 @@ const queryClient = new QueryClient({
 })
 
 createApp(App)
+  .use(router)
   .use(createPinia())
   .use(VueQueryPlugin, { queryClient })
   .mount('#app')

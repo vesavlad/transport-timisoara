@@ -13,9 +13,6 @@ const layersMeta: Record<LayerId, { label: string, icon: string, activeClass: st
 
 <template>
   <div class="space-y-2">
-    <div class="text-xs uppercase tracking-wide text-base-content/70">
-      Layers
-    </div>
     <div class="flex flex-wrap gap-2">
       <button
         v-for="(meta, id) in layersMeta"

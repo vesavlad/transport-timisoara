@@ -2,6 +2,8 @@
 import type { Vehicle } from '../data/types'
 import { computed } from 'vue'
 
+import StatusState from './StatusState.vue'
+
 const props = defineProps<{
   vehicles: Vehicle[]
   selectedVehicleId: string | null
@@ -27,9 +29,12 @@ const sorted = computed(() => {
       <div class="skeleton h-10 w-full" />
     </div>
 
-    <div v-else-if="sorted.length === 0" class="text-sm text-base-content/70">
-      No vehicles reported.
-    </div>
+    <StatusState
+      v-else-if="sorted.length === 0"
+      compact
+      title="No live vehicles"
+      message="No vehicles reported right now."
+    />
 
     <ul v-else class="list rounded-box border border-base-300 bg-base-100">
       <li v-for="v in sorted" :key="v.id" class="list-row p-0">
