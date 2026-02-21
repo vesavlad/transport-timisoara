@@ -686,6 +686,16 @@ function initSourcesAndLayers(map: MaplibreMap) {
 <template>
   <div class="relative h-full w-full">
     <div
+      v-if="selectedRouteId"
+      class="pointer-events-none absolute left-2 top-2 z-10 flex items-center gap-1 rounded-box border border-base-300 bg-base-100/90 px-2 py-1 text-xs shadow-sm backdrop-blur"
+    >
+      <span class="badge badge-xs badge-soft badge-primary">{{ selectedRouteId }}</span>
+      <span class="badge badge-xs" :class="selectedDirection === 'tur' ? 'badge-info badge-soft' : 'badge-secondary badge-soft'">
+        {{ selectedDirection }}
+      </span>
+    </div>
+
+    <div
       v-if="false"
       class="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded-box border border-base-300 bg-base-100/85 px-2 py-1 text-xs text-base-content backdrop-blur"
     >
