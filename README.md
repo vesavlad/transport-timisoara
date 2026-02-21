@@ -105,3 +105,37 @@ Once you share your provider’s endpoints and response shapes, we’ll map them
 - `RouteShape`
 - `Stop[]`
 - `Vehicle[]`
+
+## Deploy on Netlify (and similar services)
+
+This app is a static Vite SPA, so deploy is straightforward:
+
+### Netlify
+
+The repo now includes `netlify.toml` with:
+
+- build command: `pnpm run build`
+- publish directory: `dist`
+- SPA fallback redirect (`/* -> /index.html`)
+
+In Netlify UI:
+
+1. Import the Git repository.
+2. Use the detected build settings (or keep defaults from `netlify.toml`).
+3. Add env vars from `.env.example` only if you need custom runtime values.
+4. Deploy.
+
+Notes:
+
+- Route assets are served from `public/assets/stpt` and are bundled as static files.
+- If you use custom API/style endpoints, set `VITE_*` variables in Netlify Site Settings → Environment Variables.
+
+### Vercel / Cloudflare Pages / Render Static
+
+Use the same static setup:
+
+- Build command: `pnpm run build`
+- Output directory: `dist`
+
+And configure SPA history fallback so deep links like `/route/33/stop/153` return `index.html`.
+Without this rewrite, direct refresh/open on nested routes returns 404.
