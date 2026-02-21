@@ -5,6 +5,9 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStops, useStopsByDirection, useStopTimetables, useVehicles } from '../../data/hooks'
 import { useMapStore } from '../../state/mapStore'
+import StopDetail from '../route/StopDetail.vue'
+import StopFooter from '../route/StopFooter.vue'
+import StopHeader from '../route/StopHeader.vue'
 import StatusState from '../StatusState.vue'
 import ToggleRow from '../ToggleRow.vue'
 import VehicleList from '../VehicleList.vue'
@@ -108,37 +111,6 @@ const activeDirectionDestination = computed(() => {
     return null
   return timeForStop(firstStopId)?.destination ?? null
 })
-
-function stopMarkerClass(stopId: string) {
-  if (selectedStopId.value === stopId) {
-    return activeDirection.value === 'tur'
-      ? 'border-info bg-info/30'
-      : 'border-secondary bg-secondary/30'
-  }
-
-  return 'border-base-300 bg-base-100'
-}
-
-function stopRowClass(stopId: string) {
-  if (selectedStopId.value === stopId) {
-    return activeDirection.value === 'tur'
-      ? 'border-info/40 bg-info/10 shadow-sm'
-      : 'border-secondary/40 bg-secondary/10 shadow-sm'
-  }
-
-  return 'border-transparent hover:border-base-300 hover:bg-base-200/70'
-}
-
-function stopEtaBadgeClass(stopId: string) {
-  const minutes = timeForStop(stopId)?.minutes
-  if (minutes == null)
-    return 'badge-ghost'
-  if (minutes <= 0)
-    return 'badge-success'
-  if (minutes <= 5)
-    return 'badge-warning'
-  return 'badge-neutral'
-}
 
 function pickDefaultDirection() {
   const turCount = stopsByDirectionData.value.tur.length
@@ -317,106 +289,41 @@ watch(
             />
 
             <div v-else class="space-y-2">
-              <div class="flex items-center justify-between px-1">
-                <div class="text-xs font-semibold tracking-wide text-base-content/70 uppercase">
-                  Route stops
-                </div>
-                <div class="badge badge-sm" :class="activeDirection === 'tur' ? 'badge-info badge-soft' : 'badge-secondary badge-soft'">
-                  {{ activeDirection }} · {{ activeDirectionStops.length }}
-                </div>
-              </div>
-
               <div class="relative">
-                <div class="pointer-events-none absolute left-2.5 top-3 bottom-3 w-px bg-base-300 opacity-70" />
+                <div class="pointer-events-none absolute left-2.5 top-3 bottom-3 w-px bg-red-300 opacity-70" />
 
-                <div v-if="firstActiveStop" class="relative mb-1">
-                  <span
-                    class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2"
-                    :class="stopMarkerClass(firstActiveStop.id)"
-                  />
-                  <button
-                    type="button"
-                    class="w-full rounded-box border py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    :class="stopRowClass(firstActiveStop.id)"
-                    :data-stop-id="firstActiveStop.id" @click="openStop(firstActiveStop.id)"
-                  >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="min-w-0 space-y-0.5">
-                        <div class="flex min-w-0 items-center gap-2">
-                          <span class="badge badge-xs badge-soft badge-primary">START</span>
-                          <span class="truncate text-[15px] font-semibold text-base-content">
-                            {{ firstActiveStop.name }}
-                          </span>
-                        </div>
-                        <div class="truncate text-xs text-base-content/70">
-                          → {{ activeDirectionDestination ?? (activeDirection === 'tur' ? 'Tur direction' : 'Retur direction') }}
-                        </div>
-                        <div class="text-[11px] text-base-content/60">
-                          {{ displayMinutesForStop(firstActiveStop.id) ? `Next in ${displayMinutesForStop(firstActiveStop.id)}` : 'Live schedule unavailable' }}
-                        </div>
-                      </div>
-                      <div class="flex shrink-0 flex-col items-end gap-1">
-                        <span class="font-mono text-sm font-medium text-base-content/70">{{ displayTimeForStop(firstActiveStop.id) }}</span>
-                        <span class="badge badge-xs" :class="stopEtaBadgeClass(firstActiveStop.id)">
-                          {{ displayMinutesForStop(firstActiveStop.id) ?? 'n/a' }}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                </div>
+                <StopHeader
+                  v-if="firstActiveStop"
+                  :stop="firstActiveStop"
+                  :selected-stop-id="selectedStopId"
+                  :direction="activeDirection"
+                  :destination="activeDirectionDestination"
+                  :display-time="displayTimeForStop(firstActiveStop.id)"
+                  :display-minutes="displayMinutesForStop(firstActiveStop.id)"
+                  @open="openStop"
+                />
 
                 <ul v-if="middleActiveStops.length" class="space-y-1">
-                  <li v-for="(stop, idx) in middleActiveStops" :key="`${activeDirection}-mid-${stop.id}-${idx}`" class="relative">
-                    <span class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2" :class="stopMarkerClass(stop.id)" />
-                    <button
-                      type="button"
-                      class="w-full rounded-box border py-1.5 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                      :class="stopRowClass(stop.id)" :data-stop-id="stop.id"
-                      @click="openStop(stop.id)"
-                    >
-                      <div class="flex items-center justify-between gap-2">
-                        <div class="flex min-w-0 items-center gap-2">
-                          <span class="truncate text-[13px] font-medium text-base-content">
-                            {{ stop.name }}
-                          </span>
-                        </div>
-                        <span class="badge badge-xs" :class="stopEtaBadgeClass(stop.id)">
-                          {{ displayMinutesForStop(stop.id) ?? '—' }}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
+                  <StopDetail
+                    v-for="(stop, idx) in middleActiveStops"
+                    :key="`${activeDirection}-mid-${stop.id}-${idx}`"
+                    :stop="stop"
+                    :selected-stop-id="selectedStopId"
+                    :direction="activeDirection"
+                    :display-minutes="displayMinutesForStop(stop.id)"
+                    @open="openStop"
+                  />
                 </ul>
 
-                <div v-if="lastActiveStop" class="relative mt-1">
-                  <span
-                    class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2"
-                    :class="stopMarkerClass(lastActiveStop.id)"
-                  />
-                  <button
-                    type="button"
-                    class="w-full rounded-box border py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                    :class="stopRowClass(lastActiveStop.id)"
-                    :data-stop-id="lastActiveStop.id" @click="openStop(lastActiveStop.id)"
-                  >
-                    <div class="flex items-center justify-between gap-3">
-                      <div class="flex min-w-0 items-center gap-2">
-                        <span class="badge badge-xs badge-soft">END</span>
-                        <span class="truncate text-[15px] font-semibold text-base-content">
-                          {{ lastActiveStop.name }}
-                        </span>
-                      </div>
-                      <div class="flex shrink-0 flex-col items-end gap-1">
-                        <span class="font-mono text-sm font-medium text-base-content/70">
-                          {{ displayTimeForStop(lastActiveStop.id) }}
-                        </span>
-                        <span class="badge badge-xs" :class="stopEtaBadgeClass(lastActiveStop.id)">
-                          {{ displayMinutesForStop(lastActiveStop.id) ?? 'n/a' }}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                </div>
+                <StopFooter
+                  v-if="lastActiveStop"
+                  :stop="lastActiveStop"
+                  :selected-stop-id="selectedStopId"
+                  :direction="activeDirection"
+                  :display-time="displayTimeForStop(lastActiveStop.id)"
+                  :display-minutes="displayMinutesForStop(lastActiveStop.id)"
+                  @open="openStop"
+                />
               </div>
             </div>
           </div>
