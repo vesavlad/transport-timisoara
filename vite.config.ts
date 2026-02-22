@@ -4,12 +4,13 @@ import { unheadVueComposablesImports } from '@unhead/vue'
 import Vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import VueMacros from 'unplugin-vue-macros/vite'
-import { VueRouterAutoImports } from 'unplugin-vue-router'
-import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
+import Inspect from 'vite-plugin-inspect'
 import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
+import VueMacros from 'vue-macros/vite'
+import { VueRouterAutoImports } from 'vue-router/unplugin'
+import VueRouter from 'vue-router/vite'
 import 'vitest/config'
 
 // https://vite.dev/config/
@@ -103,7 +104,7 @@ export default defineConfig({
         ],
       },
     }),
-
+    Inspect(),
     tailwindcss(),
   ],
 

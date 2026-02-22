@@ -19,8 +19,7 @@
       "vitest",
       "vite/client",
       "vite-plugin-pwa/client",
-      "unplugin-vue-macros/macros-global",
-      "unplugin-vue-router/client"
+      "vue-macros/macros-global"
     ],
     "allowJs": true,
     "strict": true,
@@ -33,10 +32,7 @@
     "skipLibCheck": true
   },
   "vueCompilerOptions": {
-    "plugins": [
-      "@vue-macros/volar/define-models",
-      "@vue-macros/volar/define-slots"
-    ]
+    "plugins": ["vue-macros/volar"]
   },
   "exclude": [
     "dist",
