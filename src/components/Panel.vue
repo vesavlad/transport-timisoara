@@ -1,6 +1,6 @@
 <template>
   <div class="h-full w-full overflow-hidden bg-base-100 shadow">
-    <div class="h-full overflow-auto px-4 py-3">
+    <div class="h-full overflow-auto pl-4 p-2">
       <slot />
     </div>
   </div>

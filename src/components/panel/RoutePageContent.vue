@@ -251,7 +251,7 @@ watch(
       </div>
     </div>
 
-    <div v-if="selectedRouteId">
+    <div v-if="selectedRouteId" class="w-full">
       <div class="pt-0">
         <div v-if="showStopsByDirectionLoading" class="space-y-2">
           <div class="skeleton h-8 w-full" />
@@ -311,7 +311,7 @@ watch(
             </button>
           </div>
 
-          <div class="rounded-box border border-base-300 bg-base-100 p-2">
+          <div class="">
             <StatusState
               v-if="activeDirectionStops.length === 0"
               compact
@@ -321,7 +321,7 @@ watch(
 
             <div v-else class="space-y-2">
               <div class="relative">
-                <div class="pointer-events-none absolute left-2.5 top-3 bottom-3 w-px bg-red-300 opacity-70" />
+                <div class="pointer-events-none absolute left-2.5 top-3 bottom-3 w-0.5 bg-base-content opacity-70" />
 
                 <StopHeader
                   v-if="firstActiveStop"

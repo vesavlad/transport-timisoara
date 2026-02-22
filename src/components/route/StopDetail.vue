@@ -23,7 +23,7 @@ const markerClass = computed(() => {
       : 'border-secondary bg-secondary/30'
   }
 
-  return 'border-red-300 bg-base-100'
+  return 'border-base-content bg-base-100'
 })
 
 const rowClass = computed(() => {
