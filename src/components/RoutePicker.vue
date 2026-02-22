@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { useRoutes } from '../data/hooks'
-import { useMapStore } from '../state/mapStore'
+import { useMapStore } from '../stores/mapStore'
 import StatusState from './StatusState.vue'
 
 const store = useMapStore()

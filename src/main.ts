@@ -3,8 +3,8 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 // In some bundler setups the default "blob worker" can break at runtime with
 // errors like "__publicField is not defined". Point MapLibre to its packaged
 // CSP worker bundle instead.
-import { setWorkerUrl } from 'maplibre-gl'
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url'
+// import { setWorkerUrl } from 'maplibre-gl'
+// import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url'
 
 import { createPinia } from 'pinia'
 import { createApp, watchEffect } from 'vue'
@@ -16,7 +16,7 @@ import { router } from './router'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 
-setWorkerUrl(maplibreWorkerUrl)
+// setWorkerUrl(maplibreWorkerUrl)
 
 watchEffect(() => {
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')

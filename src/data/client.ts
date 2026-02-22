@@ -33,8 +33,6 @@ export function getStptConfig() {
 }
 
 export function getMapConfig() {
-  // Mapbox Style Spec v8 JSON URLs compatible with MapLibre.
-  // Defaults: CARTO Voyager (light) + Dark Matter (dark), both OSM-based.
   const styleUrl = optionalEnv('VITE_MAP_STYLE_URL')
   const lightStyleUrl
     = optionalEnv('VITE_MAP_STYLE_LIGHT_URL')

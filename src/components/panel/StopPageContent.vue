@@ -4,7 +4,7 @@ import { computed } from 'vue'
 
 import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStopDepartures, useStops } from '../../data/hooks'
-import { useMapStore } from '../../state/mapStore'
+import { useMapStore } from '../../stores/mapStore'
 import StatusState from '../StatusState.vue'
 
 const store = useMapStore()

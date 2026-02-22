@@ -2,11 +2,11 @@
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 
+import MapView from '../components/MapView.vue'
 import Panel from '../components/Panel.vue'
 import PanelContent from '../components/PanelContent.vue'
 import { isDark } from '../composables/dark'
-import MapView from '../map/MapView.vue'
-import { useMapStore } from '../state/mapStore'
+import { useMapStore } from '../stores/mapStore'
 
 const store = useMapStore()
 const route = useRoute()

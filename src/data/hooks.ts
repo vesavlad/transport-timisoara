@@ -4,12 +4,7 @@ import type { Route, RouteShape, Stop, Vehicle } from './types'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { fetchJson, getStptConfig, getTransitApiConfig } from './client'
-import {
-  mockGetRouteShape,
-  mockListRoutes,
-  mockListStops,
-  mockListVehicles,
-} from './mock'
+
 import {
   isSchoolRouteId,
   stptLinesConfigToRoutes,
@@ -51,6 +46,17 @@ export interface StopDeparture {
   destination: string | null
   time: string | null
   minutes: number | null
+}
+
+export interface GeoPoint {
+  lat: number
+  lon: number
+}
+
+export interface NearbyRoute {
+  route: Route
+  nearestStop: Stop
+  distanceMeters: number
 }
 
 type StptRouteDirection = 'tur' | 'retur'
@@ -293,6 +299,45 @@ function parseTimetableTime(first: unknown) {
   }
 }
 
+function toRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function distanceMeters(a: GeoPoint, b: GeoPoint) {
+  const earthRadiusMeters = 6371e3
+  const dLat = toRadians(b.lat - a.lat)
+  const dLon = toRadians(b.lon - a.lon)
+  const lat1 = toRadians(a.lat)
+  const lat2 = toRadians(b.lat)
+
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
+  return earthRadiusMeters * c
+}
+
+function nearestStopForRoute(userLocation: GeoPoint, route: Route, stops: Stop[]): NearbyRoute | null {
+  let bestStop: Stop | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (const stop of stops) {
+    const d = distanceMeters(userLocation, { lat: stop.lat, lon: stop.lon })
+    if (d < bestDistance) {
+      bestDistance = d
+      bestStop = stop
+    }
+  }
+
+  if (!bestStop || !Number.isFinite(bestDistance))
+    return null
+
+  return {
+    route,
+    nearestStop: bestStop,
+    distanceMeters: bestDistance,
+  }
+}
+
 function mapStopDepartures(payload: StptStopTimetableItem[]): StopDeparture[] {
   const out: StopDeparture[] = []
 
@@ -391,14 +436,12 @@ export function useRoutes() {
   return useQuery<Route[]>({
     queryKey: ['routes', source],
     queryFn: async () => {
-      if (source === 'mock')
-        return mockListRoutes()
       if (source === 'stpt') {
         const cfg = await getLinesConfig()
         return stptLinesConfigToRoutes(cfg)
       }
       // TODO: implement vendor routes mapping
-      return mockListRoutes()
+      return []
     },
     refetchInterval: false,
     staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
@@ -417,8 +460,6 @@ export function useRouteShape(routeId: Ref<string | null>) {
     queryFn: async () => {
       if (!routeId.value)
         return null
-      if (source === 'mock')
-        return mockGetRouteShape(routeId.value)
       if (source === 'stpt') {
         // Strict mode: only render route line when GeoJSON is available.
         try {
@@ -430,7 +471,7 @@ export function useRouteShape(routeId: Ref<string | null>) {
         }
       }
       // TODO: implement vendor shape mapping
-      return mockGetRouteShape(routeId.value)
+      return null
     },
     refetchInterval: false,
     staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
@@ -454,9 +495,6 @@ export function useRouteShapeByDirection(
       if (!routeId.value)
         return null
 
-      if (source === 'mock')
-        return mockGetRouteShape(routeId.value)
-
       if (source === 'stpt') {
         try {
           return await getRouteGeo(routeId.value, direction.value)
@@ -467,7 +505,7 @@ export function useRouteShapeByDirection(
       }
 
       // TODO: implement vendor shape mapping with direction support
-      return mockGetRouteShape(routeId.value)
+      return null
     },
     refetchInterval: false,
     staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
@@ -485,14 +523,6 @@ export function useAllRouteShapes() {
   return useQuery<Array<RouteShape & { source: 'geojson' | 'mock' | 'vendor' }>>({
     queryKey: ['routeShapes', source],
     queryFn: async () => {
-      if (source === 'mock') {
-        const routes = await mockListRoutes()
-        const shapes = await Promise.all(routes.map(r => mockGetRouteShape(r.id)))
-        return shapes
-          .filter((s): s is RouteShape => !!s)
-          .map(s => ({ ...s, source: 'mock' as const }))
-      }
-
       if (source === 'stpt') {
         const cfg = await getLinesConfig()
         const routes = stptLinesConfigToRoutes(cfg)
@@ -519,11 +549,7 @@ export function useAllRouteShapes() {
       }
 
       // TODO: implement vendor route-shape mapping
-      const routes = await mockListRoutes()
-      const shapes = await Promise.all(routes.map(r => mockGetRouteShape(r.id)))
-      return shapes
-        .filter((s): s is RouteShape => !!s)
-        .map(s => ({ ...s, source: 'vendor' as const }))
+      return []
     },
     refetchInterval: false,
     staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
@@ -542,14 +568,12 @@ export function useStops(routeId: Ref<string | null>) {
     queryFn: async () => {
       if (!routeId.value)
         return []
-      if (source === 'mock')
-        return mockListStops(routeId.value)
       if (source === 'stpt') {
         const cfg = await getLinesConfig()
         return stptLinesConfigToStops(cfg, routeId.value)
       }
       // TODO: implement vendor stop mapping
-      return mockListStops(routeId.value)
+      return []
     },
     refetchInterval: false,
     staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
@@ -575,11 +599,9 @@ export function useStopsByDirection(routeId: Ref<string | null>) {
         return stptLinesConfigToStopsByDirection(cfg, routeId.value)
       }
 
-      // Mock/vendor fallback: represent a single path as tur, reverse as retur.
-      const stops = await mockListStops(routeId.value)
       return {
-        tur: stops,
-        retur: [...stops].reverse(),
+        tur: [],
+        retur: [],
       }
     },
     refetchInterval: false,
@@ -601,16 +623,13 @@ export function useVehicles(routeId: Ref<string | null>) {
 
       if (!activeRouteId && source !== 'stpt')
         return []
-      if (source === 'mock')
-        return activeRouteId ? mockListVehicles(activeRouteId) : []
       if (source === 'stpt') {
         const payload = await fetchStptLiveVehicles(stpt.vehiclesUrl)
         if (!activeRouteId)
           return mapAllStptLiveVehicles(payload)
         return mapStptLiveVehicles(activeRouteId, payload)
       }
-      // TODO: implement vendor vehicles mapping
-      return activeRouteId ? mockListVehicles(activeRouteId) : []
+      return []
     },
     refetchInterval: 5000,
   })
@@ -672,5 +691,55 @@ export function useStopDepartures(stopId: Ref<string | null>) {
       return mapStopDepartures(payload)
     },
     refetchInterval: 60_000,
+  })
+}
+
+export function useNearbyRoutes(
+  userLocation: Ref<GeoPoint | null>,
+  options?: {
+    limit?: number
+    maxDistanceMeters?: number
+  },
+) {
+  const source = getDataSource()
+  const qc = useQueryClient()
+  const getLinesConfig = makeStptLinesConfigGetter(qc)
+  const limit = Math.max(1, options?.limit ?? 6)
+  const maxDistanceMeters = Math.max(50, options?.maxDistanceMeters ?? 1200)
+
+  return useQuery<NearbyRoute[]>({
+    enabled: computed(() => !!userLocation.value),
+    queryKey: computed(() => [
+      'nearbyRoutes',
+      source,
+      userLocation.value ? Number(userLocation.value.lat.toFixed(5)) : null,
+      userLocation.value ? Number(userLocation.value.lon.toFixed(5)) : null,
+      limit,
+      maxDistanceMeters,
+    ]),
+    queryFn: async () => {
+      const location = userLocation.value
+      if (!location)
+        return []
+
+      if (source === 'stpt') {
+        const cfg = await getLinesConfig()
+        const routes = stptLinesConfigToRoutes(cfg)
+
+        const matches = routes
+          .map(route => nearestStopForRoute(location, route, stptLinesConfigToStops(cfg, route.id)))
+          .filter((item): item is NearbyRoute => !!item)
+          .filter(item => item.distanceMeters <= maxDistanceMeters)
+          .sort((a, b) => a.distanceMeters - b.distanceMeters)
+
+        return matches.slice(0, limit)
+      }
+
+      return []
+    },
+    refetchInterval: false,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 }

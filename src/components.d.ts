@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     HomePageContent: typeof import('./components/panel/HomePageContent.vue')['default']
     LayerToggles: typeof import('./components/LayerToggles.vue')['default']
+    MapView: typeof import('./components/MapView.vue')['default']
     Panel: typeof import('./components/Panel.vue')['default']
     PanelContent: typeof import('./components/PanelContent.vue')['default']
     RoutePageContent: typeof import('./components/panel/RoutePageContent.vue')['default']

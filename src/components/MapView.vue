@@ -25,7 +25,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { isDark } from '~/composables/dark'
 import { getMapConfig } from '~/data/client'
 import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '~/data/hooks'
-import { useMapStore } from '~/state/mapStore'
+import { useMapStore } from '~/stores/mapStore'
 
 function asFeatureCollection(features: Feature[]): FeatureCollection<Geometry> {
   return { type: 'FeatureCollection', features }

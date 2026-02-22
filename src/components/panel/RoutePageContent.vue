@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { RouteDirection } from '../../state/mapStore'
+import type { RouteDirection } from '../../stores/mapStore'
 import { storeToRefs } from 'pinia'
 
 import { computed, nextTick, ref, watch } from 'vue'
 import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStops, useStopsByDirection, useStopTimetables, useVehicles } from '../../data/hooks'
-import { useMapStore } from '../../state/mapStore'
+import { useMapStore } from '../../stores/mapStore'
 import StopDetail from '../route/StopDetail.vue'
 import StopFooter from '../route/StopFooter.vue'
 import StopHeader from '../route/StopHeader.vue'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { LayerId } from '../state/mapStore'
-import { useMapStore } from '../state/mapStore'
+import type { LayerId } from '../stores/mapStore'
+import { useMapStore } from '../stores/mapStore'
 
 const store = useMapStore()
 
