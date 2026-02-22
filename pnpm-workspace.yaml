@@ -1,0 +1,8 @@
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
+onlyBuiltDependencies:
+  - cypress
+  - esbuild
+  - simple-git-hooks
