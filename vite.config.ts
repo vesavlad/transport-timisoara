@@ -8,6 +8,7 @@ import { defineConfig } from 'vite'
 import Inspect from 'vite-plugin-inspect'
 import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
+import webfontDownload from 'vite-plugin-webfont-dl'
 import VueMacros from 'vue-macros/vite'
 import { VueRouterAutoImports } from 'vue-router/unplugin'
 import VueRouter from 'vue-router/vite'
@@ -84,6 +85,9 @@ export default defineConfig({
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
+
+    // Download & self-host external webfonts referenced in CSS/HTML (e.g., Google Fonts)
+    webfontDownload(),
 
     VitePWA({
       registerType: 'autoUpdate',

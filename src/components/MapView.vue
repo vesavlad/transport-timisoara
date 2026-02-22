@@ -232,7 +232,7 @@ const vehiclesFc = computed(() => {
       geometry: { type: 'Point', coordinates: [v.lon, v.lat] },
       properties: {
         vehicleId: v.id,
-        label: v.label,
+        label: v.headsign ?? v.id,
         routeId: v.routeId,
         isSelected: selectedVehicleId.value === v.id,
       },
@@ -252,6 +252,15 @@ const routesLayout = computed(() => ({
 
 const stopsLayout = computed(() => ({
   'icon-image': 'transit-mixed',
+  'icon-anchor': 'bottom' as const,
+  'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.10, 13, 0.15, 16, 0.3] as any,
+  'icon-allow-overlap': true,
+  'icon-ignore-placement': true,
+  'visibility': 'visible' as const,
+}))
+
+const vehiclesLayout = computed(() => ({
+  'icon-image': 'transit-bus',
   'icon-anchor': 'bottom' as const,
   'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.10, 13, 0.15, 16, 0.3] as any,
   'icon-allow-overlap': true,
@@ -281,25 +290,6 @@ const routesLinePaint = computed(() => ({
   'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
   'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
 }))
-
-const vehiclesCirclePaint = computed(() => ({
-  'circle-radius': [
-    'interpolate',
-    ['linear'],
-    ['zoom'],
-    10,
-    6,
-    14,
-    8,
-    16,
-    9,
-  ] as any,
-  'circle-color': ['case', ['boolean', ['get', 'isSelected'], false], '#f43f5e', '#f97316'] as any,
-  'circle-stroke-color': '#fff7ed',
-  'circle-stroke-width': ['case', ['boolean', ['get', 'isSelected'], false], 3, 2] as any,
-  'circle-blur': 0.06,
-  'circle-opacity': 0.97,
-} satisfies CircleLayerSpecification['paint']))
 
 const userLocationAccuracyPaint = {
   'fill-color': '#22d3ee',
@@ -427,9 +417,10 @@ watch(
 
       <!-- Vehicles source + layer -->
       <MglGeoJsonSource source-id="vehicles-src" :data="vehiclesFc">
-        <MglCircleLayer
+        <MglSymbolLayer
           layer-id="vehicles"
-          :paint="vehiclesCirclePaint"
+          :layout="vehiclesLayout"
+          :paint="{ 'icon-opacity': 1 }"
           @click="onVehicleClick"
         />
       </MglGeoJsonSource>
