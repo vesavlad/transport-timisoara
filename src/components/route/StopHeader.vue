@@ -24,7 +24,7 @@ const markerClass = computed(() => {
       : 'border-secondary bg-secondary/30'
   }
 
-  return 'border-red-300 bg-base-100'
+  return 'border-red-300 bg-red-300'
 })
 
 const rowClass = computed(() => {
@@ -41,7 +41,7 @@ const rowClass = computed(() => {
 <template>
   <div class="relative mb-1">
     <span
-      class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2"
+      class="absolute left-0.45 top-3 h-5 w-5 rounded-full border-2"
       :class="markerClass"
     />
     <button
@@ -54,19 +54,21 @@ const rowClass = computed(() => {
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 space-y-0.5">
           <div class="flex min-w-0 items-center gap-2">
-            <span class="truncate text-[15px] font-semibold text-base-content">
+            <span class="truncate text-[18px] font-semibold text-base-content">
               {{ stop.name }}
             </span>
           </div>
-          <div class="truncate text-xs text-base-content/70">
-            → {{ destination ?? (direction === 'tur' ? 'Tur direction' : 'Retur direction') }}
-          </div>
-          <div class="text-[11px] text-base-content/60">
-            {{ displayMinutes ? `Next in ${displayMinutes}` : 'Live schedule unavailable' }}
-          </div>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-1">
-          <span class="font-mono text-sm font-medium text-base-content/70">{{ displayTime }}</span>
+          <span class="font-mono text-md font-medium text-base-content/70">{{ displayTime }}</span>
+        </div>
+      </div>
+      <div class="flex items-start justify-between gap-2">
+        <div class="truncate text-xs text-base-content/70">
+          → {{ destination ?? (direction === 'tur' ? 'Tur direction' : 'Retur direction') }}
+        </div>
+        <div class="badge badge-xs badge-neutral shrink-0 text-[11px] text-base-content/60">
+          {{ displayMinutes ? `Next in ${displayMinutes}` : 'Live schedule unavailable' }}
         </div>
       </div>
     </button>

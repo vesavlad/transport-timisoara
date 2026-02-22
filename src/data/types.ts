@@ -15,11 +15,14 @@ export interface Stop {
 export interface Vehicle {
   id: string
   routeId: string
-  label?: string
   lat: number
   lon: number
-  heading?: number
+  speed?: number | null
+  direction: number
+  stop?: string
+  headsign?: string
   updatedAt: number
+  accessible?: boolean
 }
 
 export interface RouteShape {

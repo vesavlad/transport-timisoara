@@ -18,8 +18,12 @@ interface StptLiveVehicleRaw {
   lng?: number | string
   bearing?: number | string
   route?: string | number
+  speed?: number | string
+  direction?: number | string
   timestamp?: number | string
+  stop?: string
   headsign?: string
+  isAccessible?: boolean
 }
 
 interface StptLiveVehiclesResponse {
@@ -379,14 +383,16 @@ function mapStptLiveVehicles(routeId: string, payload: StptLiveVehiclesResponse)
     if (!id)
       continue
 
-    const heading = parseFiniteNumber(item?.bearing) ?? undefined
     out.push({
       id,
       routeId,
-      label: item?.headsign ? `${id} • ${item.headsign}` : id,
       lat,
       lon,
-      heading,
+      speed: parseFiniteNumber(item?.speed),
+      direction: parseFiniteNumber(item?.direction) ?? 0,
+      stop: item?.stop ? String(item.stop).trim() : undefined,
+      headsign: item?.headsign,
+      accessible: item?.isAccessible === true,
       updatedAt: parseStptTimestampMs(item?.timestamp),
     })
   }
@@ -414,14 +420,16 @@ function mapAllStptLiveVehicles(payload: StptLiveVehiclesResponse): Vehicle[] {
     if (!id)
       continue
 
-    const heading = parseFiniteNumber(item?.bearing) ?? undefined
     out.push({
       id,
       routeId,
-      label: item?.headsign ? `${id} • ${item.headsign}` : id,
       lat,
       lon,
-      heading,
+      headsign: item?.headsign,
+      stop: item?.stop ? String(item.stop).trim() : undefined,
+      accessible: item?.isAccessible === true,
+      direction: parseFiniteNumber(item?.direction) ?? 0,
+      speed: parseFiniteNumber(item?.speed),
       updatedAt: parseStptTimestampMs(item?.timestamp),
     })
   }
@@ -440,7 +448,7 @@ export function useRoutes() {
         const cfg = await getLinesConfig()
         return stptLinesConfigToRoutes(cfg)
       }
-      // TODO: implement vendor routes mapping
+
       return []
     },
     refetchInterval: false,
@@ -470,7 +478,7 @@ export function useRouteShape(routeId: Ref<string | null>) {
           return null
         }
       }
-      // TODO: implement vendor shape mapping
+
       return null
     },
     refetchInterval: false,
@@ -504,7 +512,6 @@ export function useRouteShapeByDirection(
         }
       }
 
-      // TODO: implement vendor shape mapping with direction support
       return null
     },
     refetchInterval: false,
@@ -548,7 +555,6 @@ export function useAllRouteShapes() {
           .filter((s): s is RouteShape & { source: 'geojson' } => !!s)
       }
 
-      // TODO: implement vendor route-shape mapping
       return []
     },
     refetchInterval: false,
@@ -572,7 +578,7 @@ export function useStops(routeId: Ref<string | null>) {
         const cfg = await getLinesConfig()
         return stptLinesConfigToStops(cfg, routeId.value)
       }
-      // TODO: implement vendor stop mapping
+
       return []
     },
     refetchInterval: false,

@@ -256,6 +256,17 @@ watch(
         <div v-if="showStopsByDirectionLoading" class="space-y-2">
           <div class="skeleton h-8 w-full" />
           <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
+          <div class="skeleton h-8 w-full" />
         </div>
 
         <StatusState
@@ -358,13 +369,14 @@ watch(
 
     <VehicleList
       :vehicles="vehiclesQuery.data.value ?? []" :selected-vehicle-id="selectedVehicleId"
-      :is-loading="vehiclesQuery.isLoading.value" @select="store.selectVehicle"
+      :is-loading="vehiclesQuery.isLoading.value"
+      @select="store.selectVehicle"
     />
 
     <div v-if="selectedVehicle" class="rounded-box border border-base-300 bg-base-200 p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="text-sm font-semibold">
-          {{ selectedVehicle.label ?? 'Vehicle' }}
+          {{ selectedVehicle.headsign ?? 'Vehicle' }}
         </div>
         <button type="button" class="btn btn-xs btn-ghost" @click="store.selectVehicle(null)">
           Clear

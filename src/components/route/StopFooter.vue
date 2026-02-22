@@ -24,7 +24,7 @@ const markerClass = computed(() => {
       : 'border-secondary bg-secondary/30'
   }
 
-  return 'border-red-300 bg-base-100'
+  return 'border-red-300 bg-red-300'
 })
 
 const rowClass = computed(() => {
@@ -41,19 +41,19 @@ const rowClass = computed(() => {
 <template>
   <div class="relative mt-1">
     <span
-      class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2"
+      class="absolute left-0.45 top-5 h-5 w-5 rounded-full border-2"
       :class="markerClass"
     />
     <button
       type="button"
-      class="w-full rounded-box border py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-box border pt-3 py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
     >
       <div class="flex items-center justify-between gap-3">
         <div class="flex min-w-0 items-center gap-2">
-          <span class="truncate text-[15px] font-semibold text-base-content">
+          <span class="truncate text-[18px] font-semibold text-base-content">
             {{ stop.name }}
           </span>
         </div>
