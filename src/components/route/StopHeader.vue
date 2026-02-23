@@ -32,7 +32,7 @@ const rowClass = computed(() => {
   <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border px-3 py-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-box border px-3 pb-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
