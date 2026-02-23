@@ -18,7 +18,7 @@ import './style.css'
 // setWorkerUrl(maplibreWorkerUrl)
 
 watchEffect(() => {
-  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'cityradar-dark' : 'cityradar')
 })
 
 const queryClient = new QueryClient({

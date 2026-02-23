@@ -6,6 +6,18 @@ publish = "dist"
 NODE_VERSION = "22"
 
 [[redirects]]
+from = "/stpt/gtfs-vehicles.php"
+to = "https://live.stpt.ro/gtfs-vehicles.php"
+status = 200
+force = true
+
+[[redirects]]
+from = "/stpt/proxy-smtt-cache.php"
+to = "https://live.stpt.ro/proxy-smtt-cache.php"
+status = 200
+force = true
+
+[[redirects]]
 from = "/*"
 to = "/index.html"
 status = 200

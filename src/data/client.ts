@@ -27,8 +27,8 @@ export function getStptConfig() {
   return {
     linesConfigUrl: optionalEnv('VITE_LINES_CONFIG_URL') || '/assets/stpt/lines-config.json',
     linesConfigRefetchMs: parseMs(optionalEnv('VITE_LINES_CONFIG_REFETCH_MS'), 15 * 60 * 1000),
-    vehiclesUrl: optionalEnv('VITE_STPT_VEHICLES_URL') || 'https://live.stpt.ro/gtfs-vehicles.php',
-    timetableUrl: optionalEnv('VITE_STPT_TIMETABLE_URL') || 'https://live.stpt.ro/proxy-smtt-cache.php',
+    vehiclesUrl: optionalEnv('VITE_STPT_VEHICLES_URL') || '/stpt/gtfs-vehicles.php',
+    timetableUrl: optionalEnv('VITE_STPT_TIMETABLE_URL') || '/stpt/proxy-smtt-cache.php',
   }
 }
 

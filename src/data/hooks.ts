@@ -237,31 +237,53 @@ function parseStptTimestampMs(value: unknown): number {
 }
 
 async function fetchStptLiveVehicles(stptVehiclesUrl: string): Promise<StptLiveVehiclesResponse> {
-  const isDev = import.meta.env.DEV
-  const looksLikeStpt = /^https?:\/\/live\.stpt\.ro\//i.test(stptVehiclesUrl)
-
-  // In dev, if pointing at STPT directly, use the Vite proxy first to avoid
-  // an initial failed CORS request followed by a retry.
-  const effectiveUrl = isDev && looksLikeStpt
-    ? '/stpt/gtfs-vehicles.php'
-    : stptVehiclesUrl
+  const effectiveUrl = normalizeStptHttpUrl(stptVehiclesUrl, '/stpt/gtfs-vehicles.php')
 
   return await fetchJson<StptLiveVehiclesResponse>(effectiveUrl)
+}
+
+function normalizeStptHttpUrl(rawUrl: string, fallbackPath: string) {
+  const value = String(rawUrl ?? '').trim()
+  if (!value)
+    return fallbackPath
+
+  const isAbsolute = /^https?:\/\//i.test(value)
+  if (!isAbsolute)
+    return value
+
+  try {
+    const url = new URL(value)
+    // Force same-origin proxy for STPT host to avoid browser CORS in production.
+    if (url.hostname.toLowerCase() === 'live.stpt.ro')
+      return `/stpt${url.pathname}${url.search}`
+  }
+  catch {
+    return fallbackPath
+  }
+
+  return value
+}
+
+function withStopId(rawUrl: string, stopId: string) {
+  const normalized = normalizeStptHttpUrl(rawUrl, '/stpt/proxy-smtt-cache.php')
+  const base = /^https?:\/\//i.test(normalized)
+    ? undefined
+    : (globalThis.location?.origin ?? 'http://localhost')
+
+  const url = new URL(normalized, base)
+  url.searchParams.set('stopid', stopId)
+
+  if (/^https?:\/\//i.test(normalized))
+    return url.toString()
+
+  return `${url.pathname}${url.search}`
 }
 
 async function fetchStptStopTimetable(
   stptTimetableUrl: string,
   stopId: string,
 ): Promise<StptStopTimetableItem[]> {
-  const isDev = import.meta.env.DEV
-  const looksLikeStpt = /^https?:\/\/live\.stpt\.ro\//i.test(stptTimetableUrl)
-
-  const url = new URL(stptTimetableUrl)
-  url.searchParams.set('stopid', stopId)
-
-  const effectiveUrl = isDev && looksLikeStpt
-    ? `/stpt/proxy-smtt-cache.php?stopid=${encodeURIComponent(stopId)}`
-    : url.toString()
+  const effectiveUrl = withStopId(stptTimetableUrl, stopId)
 
   return await fetchJson<StptStopTimetableItem[]>(effectiveUrl)
 }

@@ -40,7 +40,7 @@ This project uses **daisyUI** on top of Tailwind CSS.
 
 - Use semantic component classes like `btn`, `card`, `input`, `toggle`, `badge`.
 - Combine them with Tailwind utilities when needed.
-- Themes are enabled globally via `src/style.css` (`light` as default and `dark` for prefers-color-scheme).
+- Themes are enabled globally via `src/style.css` (`cityradar` as default and `cityradar-dark` for prefers-color-scheme).
 
 ## Environment variables
 
@@ -80,12 +80,14 @@ Runtime env vars:
 
 - `VITE_LINES_CONFIG_URL` (optional override, default is local `/assets/stpt/lines-config.json`)
 - `VITE_LINES_CONFIG_REFETCH_MS` (default: 900000 = 15 minutes)
-- `VITE_STPT_VEHICLES_URL` (default: `https://live.stpt.ro/gtfs-vehicles.php`)
+- `VITE_STPT_VEHICLES_URL` (default: `/stpt/gtfs-vehicles.php`)
+- `VITE_STPT_TIMETABLE_URL` (default: `/stpt/proxy-smtt-cache.php`)
 
 Notes:
 
 - In **dev**, route GeoJSON has a fallback to `/stpt/routes/...` if local files are missing.
 - `lines-config.json` does not include precise station coordinates; stop marker positions are approximated along the polyline for now.
+- Live STPT runtime endpoints are called through same-origin `/stpt/*` paths to avoid browser CORS in production.
 
 ## UX structure (current)
 
@@ -116,6 +118,7 @@ The repo now includes `netlify.toml` with:
 
 - build command: `pnpm run build`
 - publish directory: `dist`
+- reverse-proxy redirects for `/stpt/gtfs-vehicles.php` and `/stpt/proxy-smtt-cache.php` to `https://live.stpt.ro/*`
 - SPA fallback redirect (`/* -> /index.html`)
 
 In Netlify UI:
