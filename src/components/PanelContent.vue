@@ -3,32 +3,36 @@ import { computed } from 'vue'
 
 import HomePageContent from './panel/HomePageContent.vue'
 import RoutePageContent from './panel/RoutePageContent.vue'
-import StopPageContent from './panel/StopPageContent.vue'
+import RoutesPageContent from './panel/RoutesPageContent.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-const pageKind = computed<'home' | 'route' | 'stop'>(() => {
+const pageKind = computed<'home' | 'routes' | 'route'>(() => {
+  if (route.name === 'routes')
+    return 'routes'
+
   const routeId = typeof route.params.routeId === 'string' ? route.params.routeId.trim() : ''
-  const stopId = typeof route.params.stopId === 'string' ? route.params.stopId.trim() : ''
-  if (routeId && stopId)
-    return 'stop'
   if (routeId)
     return 'route'
   return 'home'
 })
 
 const isHomePage = computed(() => pageKind.value === 'home')
+const isRoutesPage = computed(() => pageKind.value === 'routes')
 const isRoutePage = computed(() => pageKind.value === 'route')
-const isStopPage = computed(() => pageKind.value === 'stop')
 
-const routeParamId = computed(() => {
-  return typeof route.params.routeId === 'string' ? route.params.routeId : null
+const backLabel = computed(() => {
+  if (isRoutePage.value)
+    return 'Back to routes'
+  if (isRoutesPage.value)
+    return 'Back to home'
+  return 'Back'
 })
 
 function goBack() {
-  if (isStopPage.value && routeParamId.value) {
-    router.push(`/route/${encodeURIComponent(routeParamId.value)}`)
+  if (isRoutePage.value) {
+    router.push('/routes')
     return
   }
 
@@ -37,9 +41,14 @@ function goBack() {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 mt-2">
     <div v-if="!isHomePage" class="flex items-start">
-      <button type="button" class="btn btn-xs btn-ghost" aria-label="Go back" @click="goBack">
+      <button
+        type="button"
+        class="btn btn-sm btn-ghost gap-1.5 rounded-field border border-base-300 bg-base-100/80 text-base-content hover:bg-base-200"
+        aria-label="Go back"
+        @click="goBack"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -51,6 +60,7 @@ function goBack() {
         >
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
         </svg>
+        <span class="text-xs font-medium">{{ backLabel }}</span>
       </button>
     </div>
 
@@ -64,8 +74,8 @@ function goBack() {
       leave-to-class="opacity-0 -translate-y-1"
     >
       <HomePageContent v-if="isHomePage" key="home" />
+      <RoutesPageContent v-else-if="isRoutesPage" key="routes" />
       <RoutePageContent v-else-if="isRoutePage" key="route" />
-      <StopPageContent v-else-if="isStopPage" key="stop" />
     </Transition>
   </div>
 </template>

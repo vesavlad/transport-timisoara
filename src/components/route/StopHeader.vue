@@ -17,16 +17,6 @@ defineEmits<{
 
 const isSelected = computed(() => props.selectedStopId === props.stop.id)
 
-const markerClass = computed(() => {
-  if (isSelected.value) {
-    return props.direction === 'tur'
-      ? 'border-info bg-info/30'
-      : 'border-secondary bg-secondary/30'
-  }
-
-  return 'border-base-content bg-base-content'
-})
-
 const rowClass = computed(() => {
   if (isSelected.value) {
     return props.direction === 'tur'
@@ -39,14 +29,10 @@ const rowClass = computed(() => {
 </script>
 
 <template>
-  <div class="relative mb-1">
-    <span
-      class="absolute left-0.45 top-3 h-5 w-5 rounded-full border-2"
-      :class="markerClass"
-    />
+  <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-box border px-3 py-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
@@ -60,7 +46,7 @@ const rowClass = computed(() => {
           </div>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-1">
-          <span class="font-mono text-md font-medium text-base-content/70">{{ displayTime }}</span>
+          <span class="font-mono text-sm font-medium text-base-content/70">{{ displayTime }}</span>
         </div>
       </div>
       <div class="flex items-start justify-between gap-2">

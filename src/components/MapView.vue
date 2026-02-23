@@ -14,6 +14,7 @@ import {
   MglLineLayer,
   MglMap,
   MglNavigationControl,
+  MglPopup,
   MglScaleControl,
   MglSymbolLayer,
 } from '@indoorequal/vue-maplibre-gl'
@@ -23,9 +24,13 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { isDark } from '~/composables/dark'
+import { useMediaQuery } from '~/composables/useMediaQuery'
+import { useMinimumLoading } from '~/composables/useMinimumLoading'
 import { getMapConfig } from '~/data/client'
-import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopsByDirection, useVehicles } from '~/data/hooks'
+import { useAllRouteShapes, useRoutes, useRouteShapeByDirection, useStopDepartures, useStopsByDirection, useVehicles } from '~/data/hooks'
 import { useMapStore } from '~/stores/mapStore'
+
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 function asFeatureCollection(features: Feature[]): FeatureCollection<Geometry> {
   return { type: 'FeatureCollection', features }
@@ -99,13 +104,16 @@ function onMapLoad(payload: MapEventPayload) {
 }
 
 const store = useMapStore()
-const { selectedRouteId, selectedDirection, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
+const { selectedRouteId, selectedDirection, selectedStopId, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
 const routesQuery = useRoutes()
 const allRouteShapesQuery = useAllRouteShapes()
 const routeShapeByDirectionQuery = useRouteShapeByDirection(selectedRouteId, selectedDirection)
 const stopsByDirectionQuery = useStopsByDirection(selectedRouteId)
+const stopDeparturesQuery = useStopDepartures(selectedStopId)
 const vehiclesQuery = useVehicles(selectedRouteId)
+const showStopDeparturesLoading = useMinimumLoading(stopDeparturesQuery.isLoading, 320)
+const isMobile = useMediaQuery('(max-width: 767px)')
 const geolocation = useGeolocation({
   enableHighAccuracy: true,
   maximumAge: 10_000,
@@ -214,6 +222,59 @@ const activeDirectionStops = computed(() => {
   const grouped = stopsByDirectionQuery.data.value ?? { tur: [], retur: [] }
   return selectedDirection.value === 'tur' ? grouped.tur : grouped.retur
 })
+
+const selectedStop = computed(() => {
+  const selectedId = selectedStopId.value
+  if (!selectedId)
+    return null
+
+  const grouped = stopsByDirectionQuery.data.value ?? { tur: [], retur: [] }
+  return [...grouped.tur, ...grouped.retur].find(stop => stop.id === selectedId) ?? null
+})
+
+const selectedStopCoordinates = computed<[number, number] | null>(() => {
+  if (!selectedStop.value)
+    return null
+  return [selectedStop.value.lon, selectedStop.value.lat]
+})
+
+const stopDepartures = computed(() => {
+  const items = stopDeparturesQuery.data.value ?? []
+  return [...items].sort((a, b) => {
+    const aMinutes = a.minutes ?? Number.POSITIVE_INFINITY
+    const bMinutes = b.minutes ?? Number.POSITIVE_INFINITY
+    if (aMinutes !== bMinutes)
+      return aMinutes - bMinutes
+
+    const aTime = a.time ?? ''
+    const bTime = b.time ?? ''
+    if (aTime !== bTime)
+      return aTime.localeCompare(bTime)
+
+    return a.routeId.localeCompare(b.routeId)
+  })
+})
+
+const popupDepartures = computed(() => stopDepartures.value.slice(0, 8))
+const hiddenDeparturesCount = computed(() => Math.max(0, stopDepartures.value.length - popupDepartures.value.length))
+
+function displayDepartureMinutes(minutes: number | null) {
+  if (minutes == null)
+    return '—'
+  return minutes <= 0 ? 'due' : `${minutes} min`
+}
+
+function departureEtaClass(minutes: number | null) {
+  if (minutes == null)
+    return 'badge-ghost'
+  if (minutes <= 2)
+    return 'badge-error badge-soft'
+  if (minutes <= 6)
+    return 'badge-warning badge-soft'
+  return 'badge-success badge-soft'
+}
+
+const popupOffset = computed<[number, number]>(() => (isMobile.value ? [0, -14] : [0, -24]))
 
 const stopsFc = computed(() => {
   return asFeatureCollection(
@@ -337,6 +398,10 @@ function onVehicleClick(e: MapLayerMouseEvent) {
     store.selectVehicle(vehicleId)
 }
 
+function closeStopPopup() {
+  store.selectStop(null)
+}
+
 watch(
   [isMapLoaded, () => routeShapeByDirectionQuery.data.value],
   ([loaded, shape]) => {
@@ -381,7 +446,7 @@ watch(
       @map:styleimagemissing="onMapStyleImageMissing"
       @map:load="onMapLoad"
     >
-      <MglScaleControl position="bottom-right" />
+      <MglScaleControl :position="isMobile ? 'top-left' : 'bottom-right'" />
       <MglNavigationControl v-if="false" position="bottom-right" :visualize-pitch="true" />
 
       <!-- Routes source + layers -->
@@ -438,10 +503,123 @@ watch(
           :paint="userLocationPointPaint"
         />
       </MglGeoJsonSource>
+      <MglPopup
+        v-if="selectedStop && selectedStopCoordinates"
+        :coordinates="selectedStopCoordinates"
+        anchor="bottom"
+        :close-button="false"
+        :offset="popupOffset"
+        max-width="none"
+        :close-on-click="true"
+        class-name="z-40 cityradar-stop-popup"
+        @close="closeStopPopup"
+      >
+        <div class="cityradar-stop-popup-panel w-[min(19rem,calc(100vw-1.25rem))] max-w-full space-y-2.5 rounded-box px-1.5 py-1.5 sm:w-[min(20rem,calc(100vw-3rem))] sm:space-y-3 sm:px-0 sm:py-2">
+          <div class="flex items-start justify-between gap-2 border-b border-base-300 pb-2">
+            <div class="min-w-0">
+              <h3 class="truncate text-sm font-semibold text-base-content">
+                {{ selectedStop.name }}
+              </h3>
+              <p class="text-[11px] text-base-content/65">
+                Stop ID: {{ selectedStop.id }}
+              </p>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <span class="badge badge-sm badge-primary badge-soft">
+                {{ stopDepartures.length }} deps
+              </span>
+              <button
+                type="button"
+                class="btn btn-xs btn-circle btn-ghost"
+                aria-label="Close stop details"
+                @click="closeStopPopup"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div v-if="showStopDeparturesLoading" class="space-y-2">
+            <div class="skeleton h-7 w-full" />
+            <div class="skeleton h-7 w-full" />
+            <div class="skeleton h-7 w-full" />
+          </div>
+
+          <div v-else-if="stopDeparturesQuery.error.value" class="alert alert-soft alert-error text-xs">
+            Couldn’t load departures right now.
+          </div>
+
+          <div v-else-if="stopDepartures.length" class="space-y-2">
+            <ul class="list border-base-300 bg-base-100 max-h-[45dvh] overflow-y-auto sm:max-h-64">
+              <li
+                v-for="dep in popupDepartures"
+                :key="`${selectedStop.id}-${dep.routeId}-${dep.time}-${dep.destination}`"
+                class="list-row py-1"
+              >
+                <div class="badge badge-primary badge-soft badge-sm">
+                  {{ dep.routeId }}
+                </div>
+                <div class="list-col-grow min-w-0">
+                  <div class="truncate text-xs font-medium text-base-content">
+                    {{ dep.destination ?? 'Destination unavailable' }}
+                  </div>
+                  <div class="text-[11px] text-base-content/65">
+                    Scheduled {{ dep.time ?? '--:--' }}
+                  </div>
+                </div>
+                <div class="badge badge-sm" :class="departureEtaClass(dep.minutes)">
+                  {{ displayDepartureMinutes(dep.minutes) }}
+                </div>
+              </li>
+            </ul>
+
+            <div v-if="hiddenDeparturesCount > 0" class="text-[11px] text-base-content/65">
+              +{{ hiddenDeparturesCount }} more departures
+            </div>
+          </div>
+
+          <div v-else class="alert alert-soft text-xs">
+            No departure data available for this stop.
+          </div>
+        </div>
+      </MglPopup>
     </MglMap>
   </div>
 </template>
 
 <style scoped>
+:deep(.cityradar-stop-popup-panel) {
+  background: var(--color-base-100);
+  border: 1px solid var(--color-base-300);
+  box-shadow:
+    0 12px 28px -14px color-mix(in oklab, var(--color-base-content) 35%, transparent),
+    0 2px 8px -4px color-mix(in oklab, var(--color-base-content) 22%, transparent);
+}
 
+:deep(.cityradar-stop-popup .maplibregl-popup-content) {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none;
+}
+
+:deep(.cityradar-stop-popup .maplibregl-popup-tip) {
+  border-color: transparent !important;
+}
+
+:deep(.cityradar-stop-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip) {
+  border-top-color: var(--color-base-100) !important;
+}
+
+:deep(.cityradar-stop-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip) {
+  border-bottom-color: var(--color-base-100) !important;
+}
+
+:deep(.cityradar-stop-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip) {
+  border-left-color: var(--color-base-100) !important;
+}
+
+:deep(.cityradar-stop-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip) {
+  border-right-color: var(--color-base-100) !important;
+}
 </style>

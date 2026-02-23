@@ -11,6 +11,11 @@ export const router = createRouter({
       component: MapScreen,
     },
     {
+      path: '/routes',
+      name: 'routes',
+      component: MapScreen,
+    },
+    {
       path: '/route/:routeId',
       name: 'route',
       component: MapScreen,

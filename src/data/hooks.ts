@@ -63,6 +63,12 @@ export interface NearbyRoute {
   distanceMeters: number
 }
 
+export interface NearbyStop {
+  stop: Stop
+  distanceMeters: number
+  routeIds: string[]
+}
+
 type StptRouteDirection = 'tur' | 'retur'
 
 function stptRouteGeoJsonUrl(routeName: string, direction: StptRouteDirection) {
@@ -211,6 +217,10 @@ function normalizeRouteId(value: string) {
 
 function normalizeRouteIdLoose(value: string) {
   return normalizeRouteId(value).replace(/\s+/g, '')
+}
+
+function collator() {
+  return new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 }
 
 function parseFiniteNumber(value: unknown): number | null {
@@ -739,6 +749,83 @@ export function useNearbyRoutes(
           .sort((a, b) => a.distanceMeters - b.distanceMeters)
 
         return matches.slice(0, limit)
+      }
+
+      return []
+    },
+    refetchInterval: false,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+}
+
+export function useNearbyStops(
+  userLocation: Ref<GeoPoint | null>,
+  options?: {
+    limit?: number
+    maxDistanceMeters?: number
+  },
+) {
+  const source = getDataSource()
+  const qc = useQueryClient()
+  const getLinesConfig = makeStptLinesConfigGetter(qc)
+  const limit = Math.max(1, options?.limit ?? 10)
+  const maxDistanceMeters = Math.max(50, options?.maxDistanceMeters ?? 1000)
+
+  return useQuery<NearbyStop[]>({
+    enabled: computed(() => !!userLocation.value),
+    queryKey: computed(() => [
+      'nearbyStops',
+      source,
+      userLocation.value ? Number(userLocation.value.lat.toFixed(5)) : null,
+      userLocation.value ? Number(userLocation.value.lon.toFixed(5)) : null,
+      limit,
+      maxDistanceMeters,
+    ]),
+    queryFn: async () => {
+      const location = userLocation.value
+      if (!location)
+        return []
+
+      if (source === 'stpt') {
+        const cfg = await getLinesConfig()
+        const routes = stptLinesConfigToRoutes(cfg)
+        const byStopId = new Map<string, { stop: Stop, distanceMeters: number, routeIds: Set<string> }>()
+
+        for (const route of routes) {
+          const routeStops = stptLinesConfigToStops(cfg, route.id)
+
+          for (const stop of routeStops) {
+            const d = distanceMeters(location, { lat: stop.lat, lon: stop.lon })
+            if (!Number.isFinite(d) || d > maxDistanceMeters)
+              continue
+
+            const existing = byStopId.get(stop.id)
+            if (!existing) {
+              byStopId.set(stop.id, {
+                stop,
+                distanceMeters: d,
+                routeIds: new Set([route.id]),
+              })
+              continue
+            }
+
+            existing.routeIds.add(route.id)
+            if (d < existing.distanceMeters)
+              existing.distanceMeters = d
+          }
+        }
+
+        const c = collator()
+        return [...byStopId.values()]
+          .map(item => ({
+            stop: item.stop,
+            distanceMeters: item.distanceMeters,
+            routeIds: [...item.routeIds].sort((a, b) => c.compare(a, b)),
+          }))
+          .sort((a, b) => a.distanceMeters - b.distanceMeters)
+          .slice(0, limit)
       }
 
       return []

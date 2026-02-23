@@ -6,6 +6,7 @@ import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStopDepartures, useStops } from '../../data/hooks'
 import { useMapStore } from '../../stores/mapStore'
 import StatusState from '../StatusState.vue'
+import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
 const { selectedRouteId, selectedStopId } = storeToRefs(store)
@@ -42,13 +43,26 @@ function displayDepartureMinutes(minutes: number | null) {
 <template>
   <div class="space-y-4">
     <div v-if="selectedStop" class="">
-      <div class="flex items-start justify-between gap-2">
-        <div>
-          <div class="text-sm font-semibold">
-            {{ selectedStop.name }}
+      <PanelPageHeader
+        eyebrow="Stop"
+        :title="selectedStop.name"
+        :badge-text="selectedStop.id"
+        badge-class="badge-info badge-soft"
+        accent-class="bg-info"
+      >
+        <template #meta>
+          <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
+            <div class="stat px-4 py-2">
+              <div class="stat-title text-[10px] tracking-wide uppercase">
+                Departures
+              </div>
+              <div class="stat-value text-2xl">
+                {{ stopDepartures.length }}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </template>
+      </PanelPageHeader>
 
       <div class="mt-3">
         <div v-if="showStopDeparturesLoading" class="space-y-2">

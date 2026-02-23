@@ -16,16 +16,6 @@ defineEmits<{
 
 const isSelected = computed(() => props.selectedStopId === props.stop.id)
 
-const markerClass = computed(() => {
-  if (isSelected.value) {
-    return props.direction === 'tur'
-      ? 'border-info bg-info/30'
-      : 'border-secondary bg-secondary/30'
-  }
-
-  return 'border-base-content bg-base-100'
-})
-
 const rowClass = computed(() => {
   if (isSelected.value) {
     return props.direction === 'tur'
@@ -50,11 +40,10 @@ const etaBadgeClass = computed(() => {
 </script>
 
 <template>
-  <li class="relative">
-    <span class="absolute left-1.25 top-3 h-3 w-3 rounded-full border-2" :class="markerClass" />
+  <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border py-1.5 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-box border px-3 py-1.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
@@ -70,5 +59,5 @@ const etaBadgeClass = computed(() => {
         </span>
       </div>
     </button>
-  </li>
+  </div>
 </template>

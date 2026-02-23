@@ -17,16 +17,6 @@ defineEmits<{
 
 const isSelected = computed(() => props.selectedStopId === props.stop.id)
 
-const markerClass = computed(() => {
-  if (isSelected.value) {
-    return props.direction === 'tur'
-      ? 'border-info bg-info/30'
-      : 'border-secondary bg-secondary/30'
-  }
-
-  return 'border-base-content bg-base-content'
-})
-
 const rowClass = computed(() => {
   if (isSelected.value) {
     return props.direction === 'tur'
@@ -39,19 +29,15 @@ const rowClass = computed(() => {
 </script>
 
 <template>
-  <div class="relative mt-1">
-    <span
-      class="absolute left-0.45 top-5 h-5 w-5 rounded-full border-2"
-      :class="markerClass"
-    />
+  <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border pt-3 py-2 pl-7 pr-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-box border px-3 py-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
     >
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-2">
           <span class="truncate text-[18px] font-semibold text-base-content">
             {{ stop.name }}
@@ -61,6 +47,15 @@ const rowClass = computed(() => {
           <span class="font-mono text-sm font-medium text-base-content/70">
             {{ displayTime }}
           </span>
+        </div>
+      </div>
+
+      <div class="mt-1 flex items-start justify-between gap-2">
+        <div class="truncate text-xs text-base-content/70">
+          • Final stop
+        </div>
+        <div class="badge badge-xs badge-neutral shrink-0 text-[11px] text-base-content/60">
+          {{ displayMinutes ? `ETA ${displayMinutes}` : 'ETA unavailable' }}
         </div>
       </div>
     </button>

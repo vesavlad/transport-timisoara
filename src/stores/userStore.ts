@@ -1,5 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
+type NearMeTab = 'routes' | 'stops'
+
 export const useUserStore = defineStore('user', () => {
   /**
    * Current name of the user.
@@ -9,6 +11,7 @@ export const useUserStore = defineStore('user', () => {
 
   const usedNames = computed(() => Array.from(previousNames.value))
   const otherNames = computed(() => usedNames.value.filter(name => name !== savedName.value))
+  const nearMeTab = useLocalStorage<NearMeTab>('cityradar:user:nearMeTab', 'routes')
 
   /**
    * Changes the current name of the user and saves the one that was used
@@ -23,9 +26,15 @@ export const useUserStore = defineStore('user', () => {
     savedName.value = name
   }
 
+  function setNearMeTab(tab: NearMeTab) {
+    nearMeTab.value = tab
+  }
+
   return {
     setNewName,
+    setNearMeTab,
     otherNames,
+    nearMeTab,
     savedName,
   }
 })

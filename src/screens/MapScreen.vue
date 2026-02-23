@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import MapView from '../components/MapView.vue'
 import Panel from '../components/Panel.vue'
 import PanelContent from '../components/PanelContent.vue'
 import { isDark } from '../composables/dark'
+import { useMediaQuery } from '../composables/useMediaQuery'
 import { useMapStore } from '../stores/mapStore'
 
 const store = useMapStore()
@@ -24,11 +25,131 @@ const routeParamsSelection = computed(() => {
 })
 
 const targetPathFromStore = computed(() => {
-  if (selectedRouteId.value && selectedStopId.value)
-    return `/route/${encodeURIComponent(selectedRouteId.value)}/stop/${encodeURIComponent(selectedStopId.value)}`
   if (selectedRouteId.value)
     return `/route/${encodeURIComponent(selectedRouteId.value)}`
+  if (route.name === 'routes')
+    return '/routes'
   return '/'
+})
+
+type MobilePanelMode = 'peek' | 'half' | 'full'
+const MOBILE_PANEL_DVH: Record<MobilePanelMode, number> = {
+  peek: 32,
+  half: 58,
+  full: 100,
+}
+const MOBILE_PANEL_MIN_DVH = 28
+const MOBILE_PANEL_MAX_DVH = 100
+
+const mobilePanelMode = ref<MobilePanelMode>('half')
+const mobilePanelHeightDvh = ref<number>(MOBILE_PANEL_DVH.half)
+const isDraggingPanel = ref(false)
+const panelDragStartY = ref(0)
+const panelDragStartDvh = ref(MOBILE_PANEL_DVH.half)
+const isMobile = useMediaQuery('(max-width: 767px)')
+
+const mobilePanelInlineStyle = computed(() => {
+  if (!isMobile.value)
+    return {}
+  return {
+    height: `calc(${mobilePanelHeightDvh.value}dvh - env(safe-area-inset-bottom))`,
+  }
+})
+
+const mobilePanelModeLabel = computed(() => {
+  if (mobilePanelMode.value === 'peek')
+    return 'Peek'
+  if (mobilePanelMode.value === 'full')
+    return 'Full'
+  return 'Half'
+})
+
+const showFloatingThemeToggle = computed(() => {
+  if (!isMobile.value)
+    return true
+  return mobilePanelMode.value !== 'full'
+})
+
+function cycleMobilePanelMode() {
+  if (mobilePanelMode.value === 'peek') {
+    mobilePanelMode.value = 'half'
+    mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.half
+    return
+  }
+  if (mobilePanelMode.value === 'half') {
+    mobilePanelMode.value = 'full'
+    mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.full
+    return
+  }
+  mobilePanelMode.value = 'peek'
+  mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.peek
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function nearestPanelMode(heightDvh: number): MobilePanelMode {
+  const entries = Object.entries(MOBILE_PANEL_DVH) as Array<[MobilePanelMode, number]>
+  let best: MobilePanelMode = 'half'
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (const [mode, dvh] of entries) {
+    const distance = Math.abs(heightDvh - dvh)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = mode
+    }
+  }
+
+  return best
+}
+
+function onPanelPointerMove(event: PointerEvent) {
+  if (!isDraggingPanel.value || !isMobile.value)
+    return
+
+  const viewportHeight = window.innerHeight || 1
+  const deltaPx = panelDragStartY.value - event.clientY
+  const deltaDvh = (deltaPx / viewportHeight) * 100
+  const nextHeightDvh = panelDragStartDvh.value + deltaDvh
+
+  mobilePanelHeightDvh.value = clamp(nextHeightDvh, MOBILE_PANEL_MIN_DVH, MOBILE_PANEL_MAX_DVH)
+}
+
+function stopPanelDragging() {
+  if (!isDraggingPanel.value)
+    return
+
+  isDraggingPanel.value = false
+  window.removeEventListener('pointermove', onPanelPointerMove)
+  window.removeEventListener('pointerup', stopPanelDragging)
+  window.removeEventListener('pointercancel', stopPanelDragging)
+
+  const snappedMode = nearestPanelMode(mobilePanelHeightDvh.value)
+  mobilePanelMode.value = snappedMode
+  mobilePanelHeightDvh.value = MOBILE_PANEL_DVH[snappedMode]
+}
+
+function onPanelHandlePointerDown(event: PointerEvent) {
+  if (!isMobile.value)
+    return
+  if (event.pointerType === 'mouse' && event.button !== 0)
+    return
+
+  isDraggingPanel.value = true
+  panelDragStartY.value = event.clientY
+  panelDragStartDvh.value = mobilePanelHeightDvh.value
+
+  window.addEventListener('pointermove', onPanelPointerMove)
+  window.addEventListener('pointerup', stopPanelDragging)
+  window.addEventListener('pointercancel', stopPanelDragging)
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointermove', onPanelPointerMove)
+  window.removeEventListener('pointerup', stopPanelDragging)
+  window.removeEventListener('pointercancel', stopPanelDragging)
 })
 
 watch(
@@ -54,10 +175,11 @@ watch(
 </script>
 
 <template>
-  <div class="relative h-full w-full bg-base-200">
-    <MapView />
-
-    <div class="pointer-events-none absolute right-3 top-3 z-30 md:right-4 md:top-4">
+  <div class="flex h-full w-full bg-base-200">
+    <div
+      class="pointer-events-none absolute right-3 top-3 z-30 transition-opacity duration-200 md:right-4 md:top-4"
+      :class="showFloatingThemeToggle ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+    >
       <label
         class="swap swap-rotate pointer-events-auto inline-flex rounded-box border border-base-300 bg-base-100/95 p-2 text-base-content shadow-lg backdrop-blur"
         aria-label="Toggle dark mode"
@@ -81,10 +203,32 @@ watch(
       </label>
     </div>
 
-    <div class="pointer-events-none absolute inset-0 z-20 p-3 md:p-4">
+    <div class="pointer-events-none">
       <div class="flex h-full items-end md:items-start">
-        <div class="pointer-events-auto h-[65%] w-full max-w-xl md:h-full md:w-95 md:max-w-none">
-          <div class="card h-full overflow-hidden border border-base-300 bg-base-100/95 shadow-2xl backdrop-blur">
+        <div
+          class="pointer-events-auto w-full max-w-xl pb-[env(safe-area-inset-bottom)] md:h-full md:w-95 md:max-w-none md:pb-0"
+          :style="mobilePanelInlineStyle"
+        >
+          <div class="card relative h-full overflow-hidden rounded-none border-x-0 border-b-0 border-base-300 bg-base-100/98 shadow-none md:rounded-box md:border md:bg-base-100/95 md:shadow-2xl">
+            <div class="flex items-center justify-center gap-2 pt-1.5 pb-0.5 md:hidden">
+              <button
+                type="button"
+                class="h-3 w-12 rounded-full bg-base-content/25 touch-none cursor-row-resize active:scale-95"
+                aria-label="Drag to resize panel"
+                title="Drag to resize panel"
+                @pointerdown="onPanelHandlePointerDown"
+              />
+              <button
+                type="button"
+                class="btn btn-xs btn-ghost"
+                :aria-label="`Panel size: ${mobilePanelModeLabel}. Tap to switch size.`"
+                :title="`Panel size: ${mobilePanelModeLabel}`"
+                @pointerdown.stop
+                @click="cycleMobilePanelMode"
+              >
+                {{ mobilePanelModeLabel }}
+              </button>
+            </div>
             <Panel>
               <PanelContent />
             </Panel>
@@ -92,5 +236,7 @@ watch(
         </div>
       </div>
     </div>
+
+    <MapView />
   </div>
 </template>

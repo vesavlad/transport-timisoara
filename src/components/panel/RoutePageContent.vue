@@ -12,9 +12,9 @@ import StopHeader from '../route/StopHeader.vue'
 import StatusState from '../StatusState.vue'
 import ToggleRow from '../ToggleRow.vue'
 import VehicleList from '../VehicleList.vue'
+import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
-const router = useRouter()
 const { selectedRouteId, selectedDirection, selectedStopId, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
 const stopsQuery = useStops(selectedRouteId)
@@ -130,9 +130,7 @@ function selectorEscape(value: string) {
 }
 
 function openStop(stopId: string) {
-  if (!selectedRouteId.value)
-    return
-  router.push(`/route/${encodeURIComponent(selectedRouteId.value)}/stop/${encodeURIComponent(stopId)}`)
+  store.selectStop(stopId)
 }
 
 watch(
@@ -226,30 +224,26 @@ watch(
 
 <template>
   <div class="space-y-4">
-    <div class="overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-sm">
-      <div class="flex min-h-22 items-stretch">
-        <div class="w-2 bg-warning" />
-
-        <div class="flex flex-1 flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div class="flex min-w-0 items-center gap-3">
-            <div class="truncate text-3xl leading-none font-extrabold text-base-content sm:text-5xl">
-              {{ selectedRouteId }}
+    <PanelPageHeader
+      eyebrow="Route"
+      :title="selectedRouteId ?? 'Route'"
+      :badge-text="activeDirection"
+      badge-class="badge-warning badge-soft"
+      accent-class="bg-warning"
+    >
+      <template #meta>
+        <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
+          <div class="stat px-4 py-2">
+            <div class="stat-title text-[10px] tracking-wide uppercase">
+              Stops
             </div>
-          </div>
-
-          <div class="grid w-full shrink-0 grid-cols-3 gap-2 border-t border-base-300 pt-2 text-center sm:w-auto sm:gap-3 sm:border-t-0 sm:pt-0">
-            <div class="min-w-10">
-              <div class="text-2xl leading-none font-bold text-base-content sm:text-3xl">
-                {{ headerStopsCount }}
-              </div>
-              <div class="text-[10px] font-semibold tracking-wide text-base-content/70 uppercase">
-                Stops
-              </div>
+            <div class="stat-value text-2xl">
+              {{ headerStopsCount }}
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </PanelPageHeader>
 
     <div v-if="selectedRouteId" class="w-full">
       <div class="pt-0">
@@ -311,7 +305,7 @@ watch(
             </button>
           </div>
 
-          <div class="">
+          <div class="ml-2">
             <StatusState
               v-if="activeDirectionStops.length === 0"
               compact
@@ -320,42 +314,59 @@ watch(
             />
 
             <div v-else class="space-y-2">
-              <div class="relative">
-                <div class="pointer-events-none absolute left-2.5 top-3 bottom-3 w-0.5 bg-base-content opacity-70" />
+              <ul class="timeline timeline-snap-icon timeline-compact timeline-vertical">
+                <li v-if="firstActiveStop">
+                  <div class="timeline-middle -mx-2">
+                    <span class="inline-block h-4.5 w-4.5 rounded-full border border-primary/40 bg-primary shadow-sm" aria-hidden="true" />
+                  </div>
+                  <div class="timeline-end w-full">
+                    <StopHeader
+                      :stop="firstActiveStop"
+                      :selected-stop-id="selectedStopId"
+                      :direction="activeDirection"
+                      :destination="activeDirectionDestination"
+                      :display-time="displayTimeForStop(firstActiveStop.id)"
+                      :display-minutes="displayMinutesForStop(firstActiveStop.id)"
+                      @open="openStop"
+                    />
+                  </div>
+                  <hr v-if="middleActiveStops.length || lastActiveStop" class="bg-base-300 ml-0.75">
+                </li>
 
-                <StopHeader
-                  v-if="firstActiveStop"
-                  :stop="firstActiveStop"
-                  :selected-stop-id="selectedStopId"
-                  :direction="activeDirection"
-                  :destination="activeDirectionDestination"
-                  :display-time="displayTimeForStop(firstActiveStop.id)"
-                  :display-minutes="displayMinutesForStop(firstActiveStop.id)"
-                  @open="openStop"
-                />
+                <li v-for="(stop, idx) in middleActiveStops" :key="`${activeDirection}-mid-${stop.id}-${idx}`">
+                  <hr class="bg-base-300">
+                  <div class="timeline-middle">
+                    <span class="inline-block h-2.5 w-2.5 rounded-full border border-base-content/20 bg-base-content/70" aria-hidden="true" />
+                  </div>
+                  <div class="timeline-end w-full">
+                    <StopDetail
+                      :stop="stop"
+                      :selected-stop-id="selectedStopId"
+                      :direction="activeDirection"
+                      :display-minutes="displayMinutesForStop(stop.id)"
+                      @open="openStop"
+                    />
+                  </div>
+                  <hr class="bg-base-300">
+                </li>
 
-                <ul v-if="middleActiveStops.length" class="space-y-1">
-                  <StopDetail
-                    v-for="(stop, idx) in middleActiveStops"
-                    :key="`${activeDirection}-mid-${stop.id}-${idx}`"
-                    :stop="stop"
-                    :selected-stop-id="selectedStopId"
-                    :direction="activeDirection"
-                    :display-minutes="displayMinutesForStop(stop.id)"
-                    @open="openStop"
-                  />
-                </ul>
-
-                <StopFooter
-                  v-if="lastActiveStop"
-                  :stop="lastActiveStop"
-                  :selected-stop-id="selectedStopId"
-                  :direction="activeDirection"
-                  :display-time="displayTimeForStop(lastActiveStop.id)"
-                  :display-minutes="displayMinutesForStop(lastActiveStop.id)"
-                  @open="openStop"
-                />
-              </div>
+                <li v-if="lastActiveStop">
+                  <hr class="bg-base-300 -ml-1">
+                  <div class="timeline-middle -ml-1">
+                    <span class="inline-block h-4.5 w-4.5 rounded-full border border-secondary/40 bg-secondary shadow-sm" aria-hidden="true" />
+                  </div>
+                  <div class="timeline-end w-full">
+                    <StopFooter
+                      :stop="lastActiveStop"
+                      :selected-stop-id="selectedStopId"
+                      :direction="activeDirection"
+                      :display-time="displayTimeForStop(lastActiveStop.id)"
+                      :display-minutes="displayMinutesForStop(lastActiveStop.id)"
+                      @open="openStop"
+                    />
+                  </div>
+                </li>
+              </ul>
             </div>
           </div>
         </div>
