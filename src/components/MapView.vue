@@ -53,6 +53,63 @@ function bboxFromLine(coords: Array<[number, number]>): LngLatBoundsLike {
   ]
 }
 
+function clampChannel(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+}
+
+function normalizeHex(hex: string) {
+  const raw = String(hex ?? '').trim().replace('#', '')
+  if (raw.length === 3)
+    return `#${raw.split('').map(ch => `${ch}${ch}`).join('')}`
+  if (raw.length === 6)
+    return `#${raw}`
+  return '#eab308'
+}
+
+function mixHex(colorA: string, colorB: string, weightB: number) {
+  const w = Math.max(0, Math.min(1, weightB))
+  const a = normalizeHex(colorA)
+  const b = normalizeHex(colorB)
+
+  const ar = Number.parseInt(a.slice(1, 3), 16)
+  const ag = Number.parseInt(a.slice(3, 5), 16)
+  const ab = Number.parseInt(a.slice(5, 7), 16)
+  const br = Number.parseInt(b.slice(1, 3), 16)
+  const bg = Number.parseInt(b.slice(3, 5), 16)
+  const bb = Number.parseInt(b.slice(5, 7), 16)
+
+  const r = clampChannel(ar * (1 - w) + br * w)
+  const g = clampChannel(ag * (1 - w) + bg * w)
+  const bl = clampChannel(ab * (1 - w) + bb * w)
+
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`
+}
+
+function relativeLuminance(hex: string) {
+  const c = normalizeHex(hex)
+  const r = Number.parseInt(c.slice(1, 3), 16) / 255
+  const g = Number.parseInt(c.slice(3, 5), 16) / 255
+  const b = Number.parseInt(c.slice(5, 7), 16) / 255
+
+  const toLinear = (v: number) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+  const rl = toLinear(r)
+  const gl = toLinear(g)
+  const bl = toLinear(b)
+
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl
+}
+
+function adaptRouteColorForTheme(color: string, darkMode: boolean) {
+  // In dark mode, blend toward white to improve contrast against dark basemap.
+  // Very dark colors (e.g. black routes) get a stronger lift to stay visible.
+  if (!darkMode)
+    return color
+
+  const luminance = relativeLuminance(color)
+  const lift = luminance < 0.08 ? 0.58 : 0.35
+  return mixHex(color, '#ffffff', lift)
+}
+
 const isMapLoaded = ref(false)
 const mapRef = shallowRef<MaplibreMap | null>(null)
 
@@ -177,7 +234,8 @@ const userLocationFc = computed(() => {
 const routeColorById = computed(() => {
   const map = new Map<string, string>()
   for (const r of routesQuery.data.value ?? []) {
-    map.set(r.id, r.color ?? '#60a5fa')
+    const base = r.color ?? '#eab308'
+    map.set(r.id, adaptRouteColorForTheme(base, isDark.value))
   }
   return map
 })
@@ -194,7 +252,7 @@ const allRoutesFc = computed(() => {
         geometry: { type: 'LineString', coordinates: shape.coordinates },
         properties: {
           routeId: shape.routeId,
-          color: routeColorById.value.get(shape.routeId) ?? '#60a5fa',
+          color: routeColorById.value.get(shape.routeId) ?? '#eab308',
           isSelected: true,
           direction: selectedDirection.value,
         },
@@ -211,7 +269,7 @@ const allRoutesFc = computed(() => {
       geometry: { type: 'LineString', coordinates: shape.coordinates },
       properties: {
         routeId: shape.routeId,
-        color: routeColorById.value.get(shape.routeId) ?? '#60a5fa',
+        color: routeColorById.value.get(shape.routeId) ?? '#eab308',
         isSelected: !!selectedRouteId.value && shape.routeId === selectedRouteId.value,
       },
     })) as Feature[],
@@ -340,27 +398,29 @@ const stopsLabelLayout = computed(() => ({
 
 // Paint specs
 const routesCasingPaint = computed(() => ({
-  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 12, 8] as any,
-  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 0.3, 0.2] as any,
-  'line-blur': 1.2,
+  'line-color': isDark.value ? '#fde68a' : ['coalesce', ['get', 'color'], '#eab308'] as any,
+  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 13, 9] as any,
+  'line-opacity': isDark.value
+    ? ['case', ['boolean', ['get', 'isSelected'], false], 0.32, 0.24] as any
+    : ['case', ['boolean', ['get', 'isSelected'], false], 0.4, 0.3] as any,
+  'line-blur': isDark.value ? 1.5 : 1.2,
 }))
 
 const routesLinePaint = computed(() => ({
-  'line-color': ['coalesce', ['get', 'color'], '#60a5fa'] as any,
-  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 6.5, 4] as any,
-  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.92] as any,
+  'line-color': ['coalesce', ['get', 'color'], '#eab308'] as any,
+  'line-width': ['case', ['boolean', ['get', 'isSelected'], false], 7, 4.8] as any,
+  'line-opacity': ['case', ['boolean', ['get', 'isSelected'], false], 1, 0.96] as any,
 }))
 
 const userLocationAccuracyPaint = {
-  'fill-color': '#22d3ee',
-  'fill-opacity': 0.2,
+  'fill-color': '#facc15',
+  'fill-opacity': 0.18,
 } satisfies FillLayerSpecification['paint']
 
 const userLocationPointPaint = {
   'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 13, 7, 16, 9] as any,
-  'circle-color': '#06b6d4',
-  'circle-stroke-color': '#ffffff',
+  'circle-color': '#eab308',
+  'circle-stroke-color': '#111827',
   'circle-stroke-width': 2,
 } satisfies CircleLayerSpecification['paint']
 
