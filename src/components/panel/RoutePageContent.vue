@@ -31,7 +31,7 @@ const selectedVehicle = computed(
 )
 
 const stationsExpanded = ref(true)
-const STATIONS_EXPANDED_STORAGE_KEY = 'cityradar:stationsExpandedByRoute'
+const STATIONS_EXPANDED_STORAGE_KEY = 'ttm:stationsExpandedByRoute'
 
 function loadStationsExpandedByRoute(): Record<string, boolean> {
   if (typeof window === 'undefined')

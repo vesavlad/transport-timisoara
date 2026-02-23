@@ -1,4 +1,4 @@
-# CityRadar UX spec (MVP)
+# Transport Timisoara UX spec (MVP)
 
 Date: 2026-02-20
 

@@ -93,8 +93,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['vite.svg'],
       manifest: {
-        name: 'CityRadar',
-        short_name: 'CityRadar',
+        name: 'Transport Timisoara',
+        short_name: 'TTM',
         description: 'Public transport map: routes, stations, live vehicles',
         theme_color: '#0b1220',
         background_color: '#0b1220',

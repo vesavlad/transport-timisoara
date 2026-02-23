@@ -101,8 +101,8 @@ function routeBadgeStyle(color: string | undefined) {
 <template>
   <div class="space-y-4">
     <PanelPageHeader
-      eyebrow="Overview"
-      title="CityRadar"
+      eyebrow="Transport Timisoara"
+      title="Overview"
       badge-text="Live"
       badge-class="badge-success badge-soft"
       accent-class="bg-primary"

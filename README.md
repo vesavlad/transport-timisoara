@@ -1,4 +1,4 @@
-# CityRadar
+# Transport Timisoara
 
 Cross-platform public transportation map (desktop + mobile via PWA) that visualizes:
 

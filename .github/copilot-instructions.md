@@ -49,7 +49,7 @@ Prompt user for debug mode, launch only if confirmed.
 
 - [ ] Ensure Documentation is Complete
 
-## Progress (CityRadar)
+## Progress (Transport Timisoara)
 
 - [x] Verify that the copilot-instructions.md file in the .github directory is created.
 - [x] Clarify Project Requirements (PWA, MapLibre/OSM, vendor API, route tracking MVP).

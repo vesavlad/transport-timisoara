@@ -70,6 +70,26 @@ const showFloatingThemeToggle = computed(() => {
   return mobilePanelMode.value !== 'full'
 })
 
+const mobileSheetCardClass = computed(() => {
+  if (!isMobile.value)
+    return ''
+  if (mobilePanelMode.value === 'full')
+    return 'shadow-none'
+  if (mobilePanelMode.value === 'peek')
+    return 'shadow-[0_-18px_34px_-18px_rgba(0,0,0,0.48)]'
+  return 'shadow-[0_-14px_30px_-16px_rgba(0,0,0,0.38)]'
+})
+
+const mobileHandleClass = computed(() => {
+  if (!isMobile.value)
+    return ''
+  if (mobilePanelMode.value === 'peek')
+    return 'h-3.5 w-14 bg-base-content/45 shadow-[0_0_0_1px_rgba(255,255,255,0.22)]'
+  if (mobilePanelMode.value === 'full')
+    return 'h-2.5 w-12 bg-base-content/20'
+  return 'h-3 w-12 bg-base-content/30'
+})
+
 function cycleMobilePanelMode() {
   if (mobilePanelMode.value === 'peek') {
     mobilePanelMode.value = 'half'
@@ -175,7 +195,11 @@ watch(
 </script>
 
 <template>
-  <div class="flex h-full w-full bg-base-200">
+  <div class="relative h-full w-full overflow-hidden bg-base-200">
+    <div class="absolute inset-0 z-0">
+      <MapView />
+    </div>
+
     <div
       class="pointer-events-none absolute right-3 top-3 z-30 transition-opacity duration-200 md:right-4 md:top-4"
       :class="showFloatingThemeToggle ? 'opacity-100' : 'opacity-0 pointer-events-none'"
@@ -203,17 +227,22 @@ watch(
       </label>
     </div>
 
-    <div class="pointer-events-none">
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 md:inset-y-0 md:left-0 md:right-auto">
       <div class="flex h-full items-end md:items-start">
         <div
           class="pointer-events-auto w-full max-w-xl pb-[env(safe-area-inset-bottom)] md:h-full md:w-95 md:max-w-none md:pb-0"
           :style="mobilePanelInlineStyle"
         >
-          <div class="card relative h-full overflow-hidden rounded-none border-x-0 border-b-0 border-base-300 bg-base-100/98 shadow-none md:rounded-box md:border md:bg-base-100/95 md:shadow-2xl">
+          <div
+            class="card relative h-full overflow-hidden rounded-none border-x-0 border-b-0 border-t border-base-300/80 bg-base-100/98 md:rounded-box md:border md:bg-base-100/95 md:shadow-2xl"
+            :class="mobileSheetCardClass"
+          >
+            <div class="pointer-events-none absolute inset-x-0 top-0 h-5 bg-linear-to-b from-base-content/10 to-transparent md:hidden" />
             <div class="flex items-center justify-center gap-2 pt-1.5 pb-0.5 md:hidden">
               <button
                 type="button"
-                class="h-3 w-12 rounded-full bg-base-content/25 touch-none cursor-row-resize active:scale-95"
+                class="rounded-full touch-none cursor-row-resize transition-all duration-150 active:scale-95"
+                :class="mobileHandleClass"
                 aria-label="Drag to resize panel"
                 title="Drag to resize panel"
                 @pointerdown="onPanelHandlePointerDown"
@@ -236,7 +265,5 @@ watch(
         </div>
       </div>
     </div>
-
-    <MapView />
   </div>
 </template>

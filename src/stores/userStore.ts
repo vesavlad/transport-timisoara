@@ -11,7 +11,7 @@ export const useUserStore = defineStore('user', () => {
 
   const usedNames = computed(() => Array.from(previousNames.value))
   const otherNames = computed(() => usedNames.value.filter(name => name !== savedName.value))
-  const nearMeTab = useLocalStorage<NearMeTab>('cityradar:user:nearMeTab', 'routes')
+  const nearMeTab = useLocalStorage<NearMeTab>('ttm:user:nearMeTab', 'routes')
 
   /**
    * Changes the current name of the user and saves the one that was used
