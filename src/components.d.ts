@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     HomePageContent: typeof import('./components/panel/HomePageContent.vue')['default']
     LayerToggles: typeof import('./components/LayerToggles.vue')['default']
+    MapPanelScreenShell: typeof import('./components/MapPanelScreenShell.vue')['default']
     MapView: typeof import('./components/MapView.vue')['default']
     MobileViewportDock: typeof import('./components/MobileViewportDock.vue')['default']
     Panel: typeof import('./components/Panel.vue')['default']
@@ -29,6 +30,7 @@ declare module 'vue' {
     StopFooter: typeof import('./components/route/StopFooter.vue')['default']
     StopHeader: typeof import('./components/route/StopHeader.vue')['default']
     StopPageContent: typeof import('./components/panel/StopPageContent.vue')['default']
+    ThemeToggleButton: typeof import('./components/ThemeToggleButton.vue')['default']
     ToggleRow: typeof import('./components/ToggleRow.vue')['default']
     VehicleList: typeof import('./components/VehicleList.vue')['default']
   }

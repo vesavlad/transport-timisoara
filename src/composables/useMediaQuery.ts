@@ -1,6 +1,6 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-export function useMediaQuery(query: string) {
+export function useAppMediaQuery(query: string) {
   const matches = ref(false)
   let media: MediaQueryList | null = null
 
