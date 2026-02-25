@@ -6,13 +6,14 @@ import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useStopDepartures, useStops } from '../../data/hooks'
 import { useMapStore } from '../../stores/mapStore'
 import StatusState from '../StatusState.vue'
-import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
 const { selectedRouteId, selectedStopId } = storeToRefs(store)
 
 const stopsQuery = useStops(selectedRouteId)
 const selectedStop = computed(() => stopsQuery.data.value?.find(s => s.id === selectedStopId.value) ?? null)
+const stopHeaderTitle = computed(() => selectedStop.value?.name ?? (selectedStopId.value ? `Stop ${selectedStopId.value}` : 'Stop'))
+const stopHeaderId = computed(() => selectedStop.value?.id ?? selectedStopId.value ?? '—')
 const stopDeparturesQuery = useStopDepartures(selectedStopId)
 const showStopDeparturesLoading = useMinimumLoading(stopDeparturesQuery.isLoading, 320)
 
@@ -42,27 +43,33 @@ function displayDepartureMinutes(minutes: number | null) {
 
 <template>
   <div class="space-y-4">
-    <div v-if="selectedStop" class="">
-      <PanelPageHeader
-        eyebrow="Stop"
-        :title="selectedStop.name"
-        :badge-text="selectedStop.id"
-        badge-class="badge-info badge-soft"
-        accent-class="bg-info"
-      >
-        <template #meta>
-          <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
-            <div class="stat px-4 py-2">
-              <div class="stat-title text-[10px] tracking-wide uppercase">
-                Departures
-              </div>
-              <div class="stat-value text-2xl">
-                {{ stopDepartures.length }}
-              </div>
+    <div v-if="selectedStopId" class="">
+      <div class="rounded-box border border-base-300 bg-base-200/70 p-3 shadow-none sm:p-4">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <p class="text-[11px] font-semibold tracking-wide text-base-content/60 uppercase">
+              Stop
+            </p>
+            <h1 class="text-lg leading-tight font-semibold text-base-content sm:text-xl">
+              {{ stopHeaderTitle }}
+            </h1>
+          </div>
+          <span class="badge badge-info badge-soft">
+            {{ stopHeaderId }}
+          </span>
+        </div>
+
+        <div class="mt-3 stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
+          <div class="stat px-4 py-2">
+            <div class="stat-title text-[10px] tracking-wide uppercase">
+              Departures
+            </div>
+            <div class="stat-value text-2xl">
+              {{ stopDepartures.length }}
             </div>
           </div>
-        </template>
-      </PanelPageHeader>
+        </div>
+      </div>
 
       <div class="mt-3">
         <div v-if="showStopDeparturesLoading" class="space-y-2">
@@ -80,7 +87,7 @@ function displayDepartureMinutes(minutes: number | null) {
         />
 
         <ul v-else-if="stopDepartures.length" class="list rounded-box border border-base-300 bg-base-100">
-          <li v-for="dep in stopDepartures" :key="`${selectedStop.id}-${dep.routeId}-${dep.time}-${dep.destination}`" class="list-row">
+          <li v-for="dep in stopDepartures" :key="`${stopHeaderId}-${dep.routeId}-${dep.time}-${dep.destination}`" class="list-row">
             <div class="badge badge-primary badge-soft">
               {{ dep.routeId }}
             </div>

@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 
 import { computed, nextTick, ref, watch } from 'vue'
 import { useMinimumLoading } from '../../composables/useMinimumLoading'
-import { useStops, useStopsByDirection, useStopTimetables, useVehicles } from '../../data/hooks'
+import { useStopsByDirection, useStopTimetables, useVehicles } from '../../data/hooks'
 import { useMapStore } from '../../stores/mapStore'
 import StopDetail from '../route/StopDetail.vue'
 import StopFooter from '../route/StopFooter.vue'
@@ -12,12 +12,10 @@ import StopHeader from '../route/StopHeader.vue'
 import StatusState from '../StatusState.vue'
 import ToggleRow from '../ToggleRow.vue'
 import VehicleList from '../VehicleList.vue'
-import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
 const { selectedRouteId, selectedDirection, selectedStopId, selectedVehicleId, followSelectedVehicle } = storeToRefs(store)
 
-const stopsQuery = useStops(selectedRouteId)
 const stopsByDirectionQuery = useStopsByDirection(selectedRouteId)
 const vehiclesQuery = useVehicles(selectedRouteId)
 const showStopsByDirectionLoading = useMinimumLoading(stopsByDirectionQuery.isLoading, 320)
@@ -71,13 +69,6 @@ const activeDirectionStops = computed(() => {
 
 const activeDirectionStopIds = computed(() => activeDirectionStops.value.map(stop => stop.id))
 const stopTimetablesQuery = useStopTimetables(activeDirectionStopIds, selectedRouteId)
-
-const headerStopsCount = computed(() => {
-  const directionalCount = activeDirectionStops.value.length
-  if (directionalCount > 0)
-    return directionalCount
-  return stopsQuery.data.value?.length ?? 0
-})
 
 const firstActiveStop = computed(() => activeDirectionStops.value[0] ?? null)
 const lastActiveStop = computed(() => {
@@ -223,28 +214,7 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-4">
-    <PanelPageHeader
-      eyebrow="Route"
-      :title="selectedRouteId ?? 'Route'"
-      :badge-text="activeDirection"
-      badge-class="badge-warning badge-soft"
-      accent-class="bg-warning"
-    >
-      <template #meta>
-        <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
-          <div class="stat px-4 py-2">
-            <div class="stat-title text-[10px] tracking-wide uppercase">
-              Stops
-            </div>
-            <div class="stat-value text-2xl">
-              {{ headerStopsCount }}
-            </div>
-          </div>
-        </div>
-      </template>
-    </PanelPageHeader>
-
+  <div class="space-y-3 sm:space-y-4">
     <div v-if="selectedRouteId" class="w-full">
       <div class="pt-0">
         <div v-if="showStopsByDirectionLoading" class="space-y-2">
@@ -305,7 +275,7 @@ watch(
             </button>
           </div>
 
-          <div class="ml-2">
+          <div class="ml-1.5 sm:ml-2">
             <StatusState
               v-if="activeDirectionStops.length === 0"
               compact
