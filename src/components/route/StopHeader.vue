@@ -32,7 +32,7 @@ const rowClass = computed(() => {
   <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border px-3 pb-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-xl border px-3 pb-2 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
@@ -53,7 +53,7 @@ const rowClass = computed(() => {
         <div class="truncate text-xs text-base-content/70">
           → {{ destination ?? (direction === 'tur' ? 'Tur direction' : 'Retur direction') }}
         </div>
-        <div class="badge badge-xs badge-neutral shrink-0 text-[11px] text-base-content/60">
+        <div class="inline-flex shrink-0 items-center rounded-full border border-neutral/60 bg-neutral/30 px-1.5 py-0.5 text-[11px] font-medium text-base-content/60">
           {{ displayMinutes ? `Next in ${displayMinutes}` : 'Live schedule unavailable' }}
         </div>
       </div>

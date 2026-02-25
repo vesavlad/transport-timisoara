@@ -620,6 +620,39 @@ export function useStops(routeId: Ref<string | null>) {
   })
 }
 
+export function useAllStops() {
+  const source = getDataSource()
+  const qc = useQueryClient()
+  const getLinesConfig = makeStptLinesConfigGetter(qc)
+
+  return useQuery<Stop[]>({
+    queryKey: ['allStops', source],
+    queryFn: async () => {
+      if (source === 'stpt') {
+        const cfg = await getLinesConfig()
+        const routes = stptLinesConfigToRoutes(cfg)
+
+        const byStopId = new Map<string, Stop>()
+        for (const route of routes) {
+          const stops = stptLinesConfigToStops(cfg, route.id)
+          for (const stop of stops) {
+            if (!byStopId.has(stop.id))
+              byStopId.set(stop.id, stop)
+          }
+        }
+
+        return [...byStopId.values()]
+      }
+
+      return []
+    },
+    refetchInterval: false,
+    staleTime: source === 'stpt' ? Number.POSITIVE_INFINITY : 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+}
+
 export function useStopsByDirection(routeId: Ref<string | null>) {
   const source = getDataSource()
   const qc = useQueryClient()

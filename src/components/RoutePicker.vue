@@ -103,39 +103,69 @@ function openRoute(routeId: string) {
 </script>
 
 <template>
-  <fieldset class="fieldset w-full">
-    <div class="filter mt-2 w-full">
-      <input
-        class="btn btn-xs" :class="typeFilter === 'all' ? 'btn-primary' : 'btn-ghost'" type="button" value="All"
+  <fieldset class="w-full">
+    <div class="mt-2 flex w-full flex-wrap gap-1.5">
+      <button
+        type="button"
+        class="inline-flex min-h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition"
+        :class="typeFilter === 'all'
+          ? 'border-primary bg-primary text-primary-content'
+          : 'border-transparent bg-transparent text-base-content hover:bg-base-200'"
         @click="typeFilter = 'all'"
       >
-      <input
-        class="btn btn-xs" :class="typeFilter === 'express' ? 'btn-primary' : 'btn-ghost'" type="button"
-        :value="`Express (${routeTypeCounts.express})`" @click="typeFilter = 'express'"
+        All
+      </button>
+      <button
+        type="button"
+        class="inline-flex min-h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition"
+        :class="typeFilter === 'express'
+          ? 'border-primary bg-primary text-primary-content'
+          : 'border-transparent bg-transparent text-base-content hover:bg-base-200'"
+        @click="typeFilter = 'express'"
       >
-      <input
-        class="btn btn-xs" :class="typeFilter === 'metro' ? 'btn-primary' : 'btn-ghost'" type="button"
-        :value="`Metro (${routeTypeCounts.metro})`" @click="typeFilter = 'metro'"
+        Express ({{ routeTypeCounts.express }})
+      </button>
+      <button
+        type="button"
+        class="inline-flex min-h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition"
+        :class="typeFilter === 'metro'
+          ? 'border-primary bg-primary text-primary-content'
+          : 'border-transparent bg-transparent text-base-content hover:bg-base-200'"
+        @click="typeFilter = 'metro'"
       >
-      <input
-        class="btn btn-xs" :class="typeFilter === 'regular' ? 'btn-primary' : 'btn-ghost'" type="button"
-        :value="`Regular (${routeTypeCounts.regular})`" @click="typeFilter = 'regular'"
+        Metro ({{ routeTypeCounts.metro }})
+      </button>
+      <button
+        type="button"
+        class="inline-flex min-h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition"
+        :class="typeFilter === 'regular'
+          ? 'border-primary bg-primary text-primary-content'
+          : 'border-transparent bg-transparent text-base-content hover:bg-base-200'"
+        @click="typeFilter = 'regular'"
       >
-      <input
-        class="btn btn-xs" :class="typeFilter === 'school' ? 'btn-primary' : 'btn-ghost'" type="button"
-        :value="`School (${routeTypeCounts.school})`" @click="typeFilter = 'school'"
+        Regular ({{ routeTypeCounts.regular }})
+      </button>
+      <button
+        type="button"
+        class="inline-flex min-h-7 items-center justify-center rounded-md border px-2 text-xs font-medium transition"
+        :class="typeFilter === 'school'
+          ? 'border-primary bg-primary text-primary-content'
+          : 'border-transparent bg-transparent text-base-content hover:bg-base-200'"
+        @click="typeFilter = 'school'"
       >
+        School ({{ routeTypeCounts.school }})
+      </button>
     </div>
 
     <div v-if="routesQuery.isLoading.value" class="mt-2 space-y-2">
       <div class="flex items-center gap-2 text-sm text-base-content/70">
-        <span class="loading loading-spinner loading-sm" />
+        <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-base-content/25 border-t-base-content" />
         Loading routes…
       </div>
       <div class="grid grid-cols-3 gap-2">
-        <div class="skeleton h-10 w-full" />
-        <div class="skeleton h-10 w-full" />
-        <div class="skeleton h-10 w-full" />
+        <div class="h-10 w-full animate-pulse rounded-md bg-base-content/10" />
+        <div class="h-10 w-full animate-pulse rounded-md bg-base-content/10" />
+        <div class="h-10 w-full animate-pulse rounded-md bg-base-content/10" />
       </div>
     </div>
 
@@ -166,8 +196,9 @@ function openRoute(routeId: string) {
       <div class="grid grid-cols-4 gap-2 pr-1 sm:grid-cols-5">
         <button
           v-for="r in filteredRoutes" :key="r.id" type="button"
-          class="btn btn-xs h-auto min-h-12 flex-col items-start justify-start gap-0.5 normal-case shadow"
-          :style="routeButtonStyle(r, selectedRouteId === r.id)" @click="openRoute(r.id)"
+          class="flex h-auto min-h-12 w-full flex-col items-start justify-start gap-0.5 rounded-md border px-2 py-1.5 text-left text-xs font-medium normal-case shadow-sm transition hover:brightness-95"
+          :style="routeButtonStyle(r, selectedRouteId === r.id)"
+          @click="openRoute(r.id)"
         >
           <span class="w-full truncate text-left font-bold text-lg opacity-85 align-middle">
             {{ hasDistinctLongName(r) ? r.longName : r.shortName }}
