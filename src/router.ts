@@ -1,6 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import MapScreen from './screens/MapScreen.vue'
+import AboutScreen from './screens/AboutScreen.vue'
+import NearbyScreen from './screens/NearbyScreen.vue'
+import RouteDetailsScreen from './screens/RouteDetailsScreen.vue'
+import RoutesScreen from './screens/RoutesScreen.vue'
+import StopDetailsScreen from './screens/StopDetailsScreen.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,22 +12,27 @@ export const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: MapScreen,
+      component: NearbyScreen,
     },
     {
       path: '/routes',
       name: 'routes',
-      component: MapScreen,
+      component: RoutesScreen,
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: AboutScreen,
     },
     {
       path: '/route/:routeId',
       name: 'route',
-      component: MapScreen,
+      component: RouteDetailsScreen,
     },
     {
-      path: '/route/:routeId/stop/:stopId',
-      name: 'route-stop',
-      component: MapScreen,
+      path: '/stop/:stopId',
+      name: 'stop',
+      component: StopDetailsScreen,
     },
   ],
 })

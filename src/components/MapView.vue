@@ -13,9 +13,7 @@ import {
   MglGeoJsonSource,
   MglLineLayer,
   MglMap,
-  MglNavigationControl,
   MglPopup,
-  MglScaleControl,
   MglSymbolLayer,
 } from '@indoorequal/vue-maplibre-gl'
 import { useGeolocation } from '@vueuse/core'
@@ -506,9 +504,6 @@ watch(
       @map:styleimagemissing="onMapStyleImageMissing"
       @map:load="onMapLoad"
     >
-      <MglScaleControl :position="isMobile ? 'top-left' : 'bottom-right'" />
-      <MglNavigationControl v-if="false" position="bottom-right" :visualize-pitch="true" />
-
       <!-- Routes source + layers -->
       <MglGeoJsonSource source-id="routes-src" :data="allRoutesFc">
         <MglLineLayer

@@ -9,6 +9,12 @@ import { isDark } from '../composables/dark'
 import { useMediaQuery } from '../composables/useMediaQuery'
 import { useMapStore } from '../stores/mapStore'
 
+type PanelPage = 'home' | 'routes' | 'route' | 'stop'
+
+defineProps<{
+  panelPage?: PanelPage
+}>()
+
 const store = useMapStore()
 const route = useRoute()
 const router = useRouter()
@@ -18,13 +24,17 @@ const { selectedRouteId, selectedStopId } = storeToRefs(store)
 const routeParamsSelection = computed(() => {
   const routeId = typeof route.params.routeId === 'string' ? route.params.routeId : null
   const stopId = typeof route.params.stopId === 'string' ? route.params.stopId : null
+  const isStopRoute = route.name === 'stop'
   return {
     routeId,
     stopId,
+    isStopRoute,
   }
 })
 
 const targetPathFromStore = computed(() => {
+  if (selectedStopId.value)
+    return `/stop/${encodeURIComponent(selectedStopId.value)}`
   if (selectedRouteId.value)
     return `/route/${encodeURIComponent(selectedRouteId.value)}`
   if (route.name === 'routes')
@@ -33,24 +43,46 @@ const targetPathFromStore = computed(() => {
 })
 
 type MobilePanelMode = 'peek' | 'half' | 'full'
+type MobileViewportMode = 'map' | 'split' | 'panel'
 const MOBILE_PANEL_DVH: Record<MobilePanelMode, number> = {
-  peek: 32,
-  half: 58,
+  peek: 36,
+  half: 70,
   full: 100,
 }
-const MOBILE_PANEL_MIN_DVH = 28
+const MOBILE_PANEL_MIN_DVH = 34
 const MOBILE_PANEL_MAX_DVH = 100
 
-const mobilePanelMode = ref<MobilePanelMode>('half')
+const mobilePanelMode = ref<MobilePanelMode>('full')
+const mobileViewportMode = ref<MobileViewportMode>('panel')
 const mobilePanelHeightDvh = ref<number>(MOBILE_PANEL_DVH.half)
 const isDraggingPanel = ref(false)
 const panelDragStartY = ref(0)
 const panelDragStartDvh = ref(MOBILE_PANEL_DVH.half)
 const isMobile = useMediaQuery('(max-width: 767px)')
+const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+
+const panelTransitionClass = computed(() => {
+  if (!isMobile.value)
+    return ''
+  return prefersReducedMotion.value ? 'transition-none' : 'transition-all duration-200 ease-out'
+})
+
+const showPanel = computed(() => {
+  if (!isMobile.value)
+    return true
+  return mobileViewportMode.value !== 'map'
+})
 
 const mobilePanelInlineStyle = computed(() => {
   if (!isMobile.value)
     return {}
+
+  if (mobileViewportMode.value === 'panel') {
+    return {
+      height: 'calc(100dvh - env(safe-area-inset-bottom))',
+    }
+  }
+
   return {
     height: `calc(${mobilePanelHeightDvh.value}dvh - env(safe-area-inset-bottom))`,
   }
@@ -91,6 +123,9 @@ const mobileHandleClass = computed(() => {
 })
 
 function cycleMobilePanelMode() {
+  if (mobileViewportMode.value !== 'split')
+    mobileViewportMode.value = 'split'
+
   if (mobilePanelMode.value === 'peek') {
     mobilePanelMode.value = 'half'
     mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.half
@@ -103,6 +138,28 @@ function cycleMobilePanelMode() {
   }
   mobilePanelMode.value = 'peek'
   mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.peek
+}
+
+function setMobileViewportMode(mode: MobileViewportMode) {
+  if (!isMobile.value)
+    return
+
+  mobileViewportMode.value = mode
+
+  if (mode === 'panel') {
+    mobilePanelMode.value = 'full'
+    mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.full
+    return
+  }
+
+  if (mode === 'split') {
+    if (mobilePanelMode.value === 'full') {
+      mobilePanelMode.value = 'half'
+      mobilePanelHeightDvh.value = MOBILE_PANEL_DVH.half
+      return
+    }
+    mobilePanelHeightDvh.value = MOBILE_PANEL_DVH[mobilePanelMode.value]
+  }
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -174,8 +231,8 @@ onBeforeUnmount(() => {
 
 watch(
   routeParamsSelection,
-  ({ routeId, stopId }) => {
-    if (routeId !== selectedRouteId.value)
+  ({ routeId, stopId, isStopRoute }) => {
+    if (!isStopRoute && routeId !== selectedRouteId.value)
       store.selectRoute(routeId)
 
     if (stopId !== selectedStopId.value)
@@ -192,6 +249,14 @@ watch(
     router.push(targetPath)
   },
 )
+
+watch(
+  isMobile,
+  (mobile) => {
+    if (!mobile)
+      mobileViewportMode.value = 'split'
+  },
+)
 </script>
 
 <template>
@@ -200,12 +265,15 @@ watch(
       <MapView />
     </div>
 
+    <div class="pointer-events-none absolute inset-0 z-10 bg-linear-to-b from-base-300/10 via-transparent to-transparent" />
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-32 bg-linear-to-t from-base-content/12 to-transparent md:h-40" />
+
     <div
-      class="pointer-events-none absolute right-3 top-3 z-30 transition-opacity duration-200 md:right-4 md:top-4"
+      class="pointer-events-none absolute right-3 top-[max(env(safe-area-inset-top),0.75rem)] z-30 transition-all duration-200 md:right-4 md:top-4"
       :class="showFloatingThemeToggle ? 'opacity-100' : 'opacity-0 pointer-events-none'"
     >
       <label
-        class="swap swap-rotate pointer-events-auto inline-flex rounded-box border border-base-300 bg-base-100/95 p-2 text-base-content shadow-lg backdrop-blur"
+        class="swap swap-rotate pointer-events-auto inline-flex rounded-box border border-base-300/80 bg-base-100/88 p-2 text-base-content shadow-xl backdrop-blur-md transition-colors hover:bg-base-100"
         aria-label="Toggle dark mode"
         title="Toggle dark mode"
       >
@@ -227,21 +295,58 @@ watch(
       </label>
     </div>
 
+    <div class="pointer-events-none absolute left-3 top-[max(env(safe-area-inset-top),0.75rem)] z-30 md:hidden">
+      <div class="join pointer-events-auto rounded-box border border-base-300/80 bg-base-100/88 p-1 shadow-lg backdrop-blur-md">
+        <button
+          type="button"
+          class="btn btn-sm join-item"
+          :class="mobileViewportMode === 'map' ? 'btn-primary' : 'btn-ghost'"
+          aria-label="Map only"
+          title="Map only"
+          @click="setMobileViewportMode('map')"
+        >
+          Map
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm join-item"
+          :class="mobileViewportMode === 'split' ? 'btn-primary' : 'btn-ghost'"
+          aria-label="Map and panel"
+          title="Map and panel"
+          @click="setMobileViewportMode('split')"
+        >
+          Split
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm join-item"
+          :class="mobileViewportMode === 'panel' ? 'btn-primary' : 'btn-ghost'"
+          aria-label="Panel only"
+          title="Panel only"
+          @click="setMobileViewportMode('panel')"
+        >
+          Panel
+        </button>
+      </div>
+    </div>
+
     <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 md:inset-y-0 md:left-0 md:right-auto">
       <div class="flex h-full items-end md:items-start">
         <div
-          class="pointer-events-auto w-full max-w-xl pb-[env(safe-area-inset-bottom)] md:h-full md:w-95 md:max-w-none md:pb-0"
+          v-if="showPanel"
+          class="pointer-events-auto w-full max-w-xl pb-[env(safe-area-inset-bottom)] md:h-full md:w-96 md:max-w-none md:px-3 md:pt-3 md:pb-3 lg:w-104"
+          :class="panelTransitionClass"
           :style="mobilePanelInlineStyle"
         >
           <div
-            class="card relative h-full overflow-hidden rounded-none border-x-0 border-b-0 border-t border-base-300/80 bg-base-100/98 md:rounded-box md:border md:bg-base-100/95 md:shadow-2xl"
+            class="card relative h-full overflow-hidden rounded-t-[1.25rem] border-x border-t border-base-300/75 bg-base-100/90 backdrop-blur md:rounded-[1.1rem] md:border md:bg-base-100/80 md:shadow-[0_30px_60px_-28px_rgba(0,0,0,0.65)]"
             :class="mobileSheetCardClass"
           >
-            <div class="pointer-events-none absolute inset-x-0 top-0 h-5 bg-linear-to-b from-base-content/10 to-transparent md:hidden" />
-            <div class="flex items-center justify-center gap-2 pt-1.5 pb-0.5 md:hidden">
+            <div class="pointer-events-none absolute inset-x-0 top-0 h-8 bg-linear-to-b from-base-content/12 to-transparent md:hidden" />
+            <div class="flex items-center justify-center gap-2 border-b border-base-300/70 bg-base-100/55 pt-1.5 pb-1.5 backdrop-blur-sm md:hidden">
               <button
                 type="button"
-                class="rounded-full touch-none cursor-row-resize transition-all duration-150 active:scale-95"
+                class="rounded-full touch-none cursor-row-resize p-1.5 transition-all duration-150 active:scale-95"
                 :class="mobileHandleClass"
                 aria-label="Drag to resize panel"
                 title="Drag to resize panel"
@@ -249,7 +354,7 @@ watch(
               />
               <button
                 type="button"
-                class="btn btn-xs btn-ghost"
+                class="btn btn-sm btn-ghost border border-base-300/70 bg-base-100/70"
                 :aria-label="`Panel size: ${mobilePanelModeLabel}. Tap to switch size.`"
                 :title="`Panel size: ${mobilePanelModeLabel}`"
                 @pointerdown.stop
@@ -259,7 +364,7 @@ watch(
               </button>
             </div>
             <Panel>
-              <PanelContent />
+              <PanelContent :forced-page="panelPage" />
             </Panel>
           </div>
         </div>

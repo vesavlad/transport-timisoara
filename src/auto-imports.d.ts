@@ -201,6 +201,7 @@ declare global {
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
+  const useMapScreenState: typeof import('./composables/useMapScreenState').useMapScreenState
   const useMapStore: typeof import('./stores/mapStore').useMapStore
   const useMediaControls: typeof import('@vueuse/core').useMediaControls
   const useMediaQuery: typeof import('./composables/useMediaQuery').useMediaQuery
@@ -317,6 +318,9 @@ declare global {
   // @ts-ignore
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { PanelPage } from './composables/useMapScreenState'
+  import('./composables/useMapScreenState')
   // @ts-ignore
   export type { LayerId, RouteDirection } from './stores/mapStore'
   import('./stores/mapStore')
@@ -522,6 +526,7 @@ declare module 'vue' {
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
+    readonly useMapScreenState: UnwrapRef<typeof import('./composables/useMapScreenState')['useMapScreenState']>
     readonly useMapStore: UnwrapRef<typeof import('./stores/mapStore')['useMapStore']>
     readonly useMediaControls: UnwrapRef<typeof import('@vueuse/core')['useMediaControls']>
     readonly useMediaQuery: UnwrapRef<typeof import('./composables/useMediaQuery')['useMediaQuery']>

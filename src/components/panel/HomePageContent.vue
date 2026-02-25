@@ -7,7 +7,6 @@ import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useNearbyRoutes, useNearbyStops, useVehicles } from '../../data/hooks'
 import { useMapStore } from '../../stores/mapStore'
 import { useUserStore } from '../../stores/userStore'
-import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
 const { selectedRouteId } = storeToRefs(store)
@@ -43,21 +42,20 @@ const nearbyStopsQuery = useNearbyStops(userLocation, {
 
 const nearbyCount = computed(() => nearbyRoutesQuery.data.value?.length ?? 0)
 const nearbyStopsCount = computed(() => nearbyStopsQuery.data.value?.length ?? 0)
-const liveVehicleCount = computed(() => vehiclesQuery.data.value?.length ?? 0)
 
 function openRoute(routeId: string) {
   router.push(`/route/${encodeURIComponent(routeId)}`)
 }
 
-function openStop(routeId: string, stopId: string) {
-  router.push(`/route/${encodeURIComponent(routeId)}/stop/${encodeURIComponent(stopId)}`)
+function openStop(stopId: string) {
+  router.push(`/stop/${encodeURIComponent(stopId)}`)
 }
 
 function openNearbyStop(item: { stop: { id: string }, routeIds: string[] }) {
   const routeId = item.routeIds[0]
   if (!routeId)
     return
-  openStop(routeId, item.stop.id)
+  openStop(item.stop.id)
 }
 
 function openAllRoutesPage() {
@@ -99,39 +97,10 @@ function routeBadgeStyle(color: string | undefined) {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <PanelPageHeader
-      eyebrow="Transport Timisoara"
-      title="Overview"
-      badge-text="Live"
-      badge-class="badge-success badge-soft"
-      accent-class="bg-primary"
-    >
-      <template #meta>
-        <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
-          <div class="stat px-3 py-2">
-            <div class="stat-title text-[10px] tracking-wide uppercase">
-              Nearby
-            </div>
-            <div class="stat-value text-xl">
-              {{ nearbyCount }}
-            </div>
-          </div>
-          <div class="stat px-3 py-2">
-            <div class="stat-title text-[10px] tracking-wide uppercase">
-              Vehicles
-            </div>
-            <div class="stat-value text-xl">
-              {{ liveVehicleCount }}
-            </div>
-          </div>
-        </div>
-      </template>
-    </PanelPageHeader>
-
+  <div class="space-y-3 sm:space-y-4">
     <div class="card card-border bg-base-200 shadow-sm">
       <div class="card-body gap-2.5 p-2.5 sm:gap-3 sm:p-3">
-        <div class="sticky top-0 z-10 -mx-2.5 flex items-start justify-between gap-2 border-b border-base-300 bg-base-200/95 px-2.5 py-1.5 backdrop-blur supports-backdrop-filter:bg-base-200/80 sm:-mx-3 sm:px-3">
+        <div class="sticky top-0 z-10 -mx-2.5 flex flex-col gap-2 border-b border-base-300 bg-base-200/95 px-2.5 py-2 backdrop-blur supports-backdrop-filter:bg-base-200/80 sm:-mx-3 sm:flex-row sm:items-start sm:justify-between sm:px-3 sm:py-1.5">
           <div>
             <h2 class="card-title text-sm leading-tight sm:text-base">
               Near me
@@ -141,11 +110,11 @@ function routeBadgeStyle(color: string | undefined) {
             </p>
           </div>
 
-          <div role="tablist" aria-label="Near me view" class="join join-horizontal">
+          <div role="tablist" aria-label="Near me view" class="join join-horizontal self-start">
             <button
               role="tab"
               type="button"
-              class="btn btn-xs join-item"
+              class="btn btn-sm join-item"
               :class="nearMeTab === 'routes' ? 'btn-primary' : 'btn-ghost'"
               @click="userStore.setNearMeTab('routes')"
             >
@@ -154,7 +123,7 @@ function routeBadgeStyle(color: string | undefined) {
             <button
               role="tab"
               type="button"
-              class="btn btn-xs join-item"
+              class="btn btn-sm join-item"
               :class="nearMeTab === 'stops' ? 'btn-info' : 'btn-ghost'"
               @click="userStore.setNearMeTab('stops')"
             >
@@ -178,12 +147,12 @@ function routeBadgeStyle(color: string | undefined) {
             <span>No route stops found within 1.2 km.</span>
           </div>
 
-          <div v-else class="max-h-[42dvh] space-y-1.5 overflow-y-auto pr-0.5">
+          <div v-else class="max-h-[34dvh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-[42dvh]">
             <button
               v-for="item in nearbyRoutesQuery.data.value"
               :key="item.route.id"
               type="button"
-              class="w-full rounded-field border p-1.5 text-left transition-all"
+              class="w-full rounded-field border p-2 text-left transition-all"
               :class="selectedRouteId === item.route.id
                 ? 'border-primary bg-primary/10 shadow-sm'
                 : 'border-base-300 bg-base-100 hover:border-primary/40 hover:bg-base-100'"
@@ -193,11 +162,11 @@ function routeBadgeStyle(color: string | undefined) {
                 <div class="min-w-0">
                   <div class="flex items-center gap-1.5">
                     <span class="badge badge-xs border-0 font-bold" :style="routeBadgeStyle(item.route.color)">{{ item.route.shortName }}</span>
-                    <span class="truncate text-[10px] text-base-content/70">{{ item.nearestStop.name }}</span>
+                    <span class="truncate text-xs text-base-content/70">{{ item.nearestStop.name }}</span>
                   </div>
                 </div>
 
-                <span class="badge badge-outline badge-primary badge-xs font-medium">
+                <span class="badge badge-outline badge-primary badge-sm font-medium">
                   {{ metersLabel(item.distanceMeters) }}
                 </span>
               </div>
@@ -205,7 +174,7 @@ function routeBadgeStyle(color: string | undefined) {
           </div>
 
           <div class="flex justify-end pt-0.5">
-            <button type="button" class="btn btn-xs btn-outline btn-primary" @click="openAllRoutesPage">
+            <button type="button" class="btn btn-sm btn-outline btn-primary" @click="openAllRoutesPage">
               Browse all routes
             </button>
           </div>
@@ -230,11 +199,11 @@ function routeBadgeStyle(color: string | undefined) {
             <span>No stops found within 1.2 km.</span>
           </div>
 
-          <div v-else class="max-h-[42dvh] space-y-1.5 overflow-y-auto pr-0.5">
+          <div v-else class="max-h-[34dvh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-[42dvh]">
             <div
               v-for="item in nearbyStopsQuery.data.value"
               :key="item.stop.id"
-              class="w-full rounded-field border border-base-300 bg-base-100 p-1.5 transition-all hover:border-info/40"
+              class="w-full rounded-field border border-base-300 bg-base-100 p-2 transition-all hover:border-info/40"
             >
               <div class="flex items-center justify-between gap-2">
                 <button
@@ -243,7 +212,7 @@ function routeBadgeStyle(color: string | undefined) {
                   :aria-label="`Open ${item.stop.name} on map`"
                   @click="openNearbyStop(item)"
                 >
-                  <p class="truncate text-[11px] font-semibold text-base-content">
+                  <p class="truncate text-xs font-semibold text-base-content">
                     {{ item.stop.name }}
                   </p>
                   <div class="mt-0.5 flex items-center gap-1">
@@ -261,13 +230,13 @@ function routeBadgeStyle(color: string | undefined) {
                 </button>
 
                 <div class="shrink-0 text-right">
-                  <span class="badge badge-outline badge-info badge-xs font-medium">
+                  <span class="badge badge-outline badge-info badge-sm font-medium">
                     {{ metersLabel(item.distanceMeters) }}
                   </span>
                   <div class="mt-0.5 flex items-center justify-end gap-1">
                     <button
                       type="button"
-                      class="btn btn-xs btn-info btn-soft btn-square"
+                      class="btn btn-sm btn-info btn-soft btn-square"
                       :aria-label="`Open ${item.stop.name} on map`"
                       @click="openNearbyStop(item)"
                     >

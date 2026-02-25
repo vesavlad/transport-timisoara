@@ -163,7 +163,7 @@ function openRoute(routeId: string) {
     </StatusState>
 
     <div v-else class="mt-2">
-      <div class="grid grid-cols-3 gap-2 pr-1 sm:grid-cols-5">
+      <div class="grid grid-cols-4 gap-2 pr-1 sm:grid-cols-5">
         <button
           v-for="r in filteredRoutes" :key="r.id" type="button"
           class="btn btn-xs h-auto min-h-12 flex-col items-start justify-start gap-0.5 normal-case shadow"
