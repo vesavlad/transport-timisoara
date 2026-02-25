@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import MapScreen from './screens/MapScreen.vue'
+import MapPanelScreenShell from './components/MapPanelScreenShell.vue'
+import AboutScreen from './screens/AboutScreen.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,22 +9,31 @@ export const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: MapScreen,
+      component: MapPanelScreenShell,
+      props: { forcedPage: 'home' },
     },
     {
       path: '/routes',
       name: 'routes',
-      component: MapScreen,
+      component: MapPanelScreenShell,
+      props: { forcedPage: 'routes' },
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: AboutScreen,
     },
     {
       path: '/route/:routeId',
       name: 'route',
-      component: MapScreen,
+      component: MapPanelScreenShell,
+      props: { forcedPage: 'route' },
     },
     {
-      path: '/route/:routeId/stop/:stopId',
-      name: 'route-stop',
-      component: MapScreen,
+      path: '/stop/:stopId',
+      name: 'stop',
+      component: MapPanelScreenShell,
+      props: { forcedPage: 'stop' },
     },
   ],
 })

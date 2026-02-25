@@ -1,16 +1,31 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 
-import HomePageContent from './panel/HomePageContent.vue'
-import RoutePageContent from './panel/RoutePageContent.vue'
-import RoutesPageContent from './panel/RoutesPageContent.vue'
+import { computed } from 'vue'
+import { useMapStore } from '../stores/mapStore'
+import PanelPageSwitch from './panel/PanelPageSwitch.vue'
+import PanelToolbar from './panel/PanelToolbar.vue'
+
+type PanelPage = 'home' | 'routes' | 'route' | 'stop'
+
+const props = defineProps<{
+  forcedPage?: PanelPage
+}>()
 
 const router = useRouter()
 const route = useRoute()
+const mapStore = useMapStore()
+const { selectedRouteId } = storeToRefs(mapStore)
 
-const pageKind = computed<'home' | 'routes' | 'route'>(() => {
+const pageKind = computed<PanelPage>(() => {
+  if (props.forcedPage)
+    return props.forcedPage
+
   if (route.name === 'routes')
     return 'routes'
+
+  if (route.name === 'stop')
+    return 'stop'
 
   const routeId = typeof route.params.routeId === 'string' ? route.params.routeId.trim() : ''
   if (routeId)
@@ -21,8 +36,25 @@ const pageKind = computed<'home' | 'routes' | 'route'>(() => {
 const isHomePage = computed(() => pageKind.value === 'home')
 const isRoutesPage = computed(() => pageKind.value === 'routes')
 const isRoutePage = computed(() => pageKind.value === 'route')
+const isStopPage = computed(() => pageKind.value === 'stop')
+
+const currentRouteId = computed(() => {
+  const routeId = typeof route.params.routeId === 'string' ? route.params.routeId.trim() : ''
+  if (routeId)
+    return routeId
+  return selectedRouteId.value ?? ''
+})
+
+const currentStop = computed(() => {
+  const stopId = typeof route.params.stopId === 'string' ? route.params.stopId.trim() : ''
+  if (stopId)
+    return stopId
+  return null
+})
 
 const backLabel = computed(() => {
+  if (isStopPage.value)
+    return 'Back to route'
   if (isRoutePage.value)
     return 'Back to routes'
   if (isRoutesPage.value)
@@ -31,6 +63,15 @@ const backLabel = computed(() => {
 })
 
 function goBack() {
+  if (isStopPage.value) {
+    if (currentRouteId.value) {
+      router.push(`/route/${encodeURIComponent(currentRouteId.value)}`)
+      return
+    }
+    router.push('/routes')
+    return
+  }
+
   if (isRoutePage.value) {
     router.push('/routes')
     return
@@ -41,41 +82,18 @@ function goBack() {
 </script>
 
 <template>
-  <div class="space-y-4 mt-2">
-    <div v-if="!isHomePage" class="flex items-start">
-      <button
-        type="button"
-        class="btn btn-sm btn-ghost gap-1.5 rounded-field border border-base-300 bg-base-100/80 text-base-content hover:bg-base-200"
-        aria-label="Go back"
-        @click="goBack"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="h-4 w-4"
-          aria-hidden="true"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6" />
-        </svg>
-        <span class="text-xs font-medium">{{ backLabel }}</span>
-      </button>
-    </div>
+  <div class="space-y-3">
+    <PanelToolbar
+      :is-home-page="isHomePage"
+      :is-routes-page="isRoutesPage"
+      :is-route-page="isRoutePage"
+      :is-stop-page="isStopPage"
+      :current-route-id="currentRouteId"
+      :current-stop="currentStop"
+      :back-label="backLabel"
+      @back="goBack"
+    />
 
-    <Transition
-      mode="out-in"
-      enter-active-class="transition-all duration-200 ease-out"
-      enter-from-class="opacity-0 translate-y-1"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition-all duration-150 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-1"
-    >
-      <HomePageContent v-if="isHomePage" key="home" />
-      <RoutesPageContent v-else-if="isRoutesPage" key="routes" />
-      <RoutePageContent v-else-if="isRoutePage" key="route" />
-    </Transition>
+    <PanelPageSwitch :page-kind="pageKind" />
   </div>
 </template>

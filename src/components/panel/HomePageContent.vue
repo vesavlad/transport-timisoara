@@ -7,7 +7,6 @@ import { useMinimumLoading } from '../../composables/useMinimumLoading'
 import { useNearbyRoutes, useNearbyStops, useVehicles } from '../../data/hooks'
 import { useMapStore } from '../../stores/mapStore'
 import { useUserStore } from '../../stores/userStore'
-import PanelPageHeader from './PanelPageHeader.vue'
 
 const store = useMapStore()
 const { selectedRouteId } = storeToRefs(store)
@@ -43,21 +42,20 @@ const nearbyStopsQuery = useNearbyStops(userLocation, {
 
 const nearbyCount = computed(() => nearbyRoutesQuery.data.value?.length ?? 0)
 const nearbyStopsCount = computed(() => nearbyStopsQuery.data.value?.length ?? 0)
-const liveVehicleCount = computed(() => vehiclesQuery.data.value?.length ?? 0)
 
 function openRoute(routeId: string) {
   router.push(`/route/${encodeURIComponent(routeId)}`)
 }
 
-function openStop(routeId: string, stopId: string) {
-  router.push(`/route/${encodeURIComponent(routeId)}/stop/${encodeURIComponent(stopId)}`)
+function openStop(stopId: string) {
+  router.push(`/stop/${encodeURIComponent(stopId)}`)
 }
 
 function openNearbyStop(item: { stop: { id: string }, routeIds: string[] }) {
   const routeId = item.routeIds[0]
   if (!routeId)
     return
-  openStop(routeId, item.stop.id)
+  openStop(item.stop.id)
 }
 
 function openAllRoutesPage() {
@@ -99,41 +97,12 @@ function routeBadgeStyle(color: string | undefined) {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <PanelPageHeader
-      eyebrow="Transport Timisoara"
-      title="Overview"
-      badge-text="Live"
-      badge-class="badge-success badge-soft"
-      accent-class="bg-primary"
-    >
-      <template #meta>
-        <div class="stats stats-horizontal border border-base-300 bg-base-200/70 shadow-none">
-          <div class="stat px-3 py-2">
-            <div class="stat-title text-[10px] tracking-wide uppercase">
-              Nearby
-            </div>
-            <div class="stat-value text-xl">
-              {{ nearbyCount }}
-            </div>
-          </div>
-          <div class="stat px-3 py-2">
-            <div class="stat-title text-[10px] tracking-wide uppercase">
-              Vehicles
-            </div>
-            <div class="stat-value text-xl">
-              {{ liveVehicleCount }}
-            </div>
-          </div>
-        </div>
-      </template>
-    </PanelPageHeader>
-
-    <div class="card card-border bg-base-200 shadow-sm">
-      <div class="card-body gap-2.5 p-2.5 sm:gap-3 sm:p-3">
-        <div class="sticky top-0 z-10 -mx-2.5 flex items-start justify-between gap-2 border-b border-base-300 bg-base-200/95 px-2.5 py-1.5 backdrop-blur supports-backdrop-filter:bg-base-200/80 sm:-mx-3 sm:px-3">
+  <div class="space-y-3 sm:space-y-4">
+    <div class="rounded-[0.75rem] border border-base-300 bg-base-200 text-base-content shadow-sm">
+      <div class="flex flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-3">
+        <div class="sticky top-0 z-10 -mx-2.5 flex flex-col gap-2 border-b border-base-300 bg-base-200/95 px-2.5 py-2 backdrop-blur supports-backdrop-filter:bg-base-200/80 sm:-mx-3 sm:flex-row sm:items-start sm:justify-between sm:px-3 sm:py-1.5">
           <div>
-            <h2 class="card-title text-sm leading-tight sm:text-base">
+            <h2 class="text-sm leading-tight font-semibold sm:text-base">
               Near me
             </h2>
             <p class="text-[11px] text-base-content/70">
@@ -141,12 +110,14 @@ function routeBadgeStyle(color: string | undefined) {
             </p>
           </div>
 
-          <div role="tablist" aria-label="Near me view" class="join join-horizontal">
+          <div role="tablist" aria-label="Near me view" class="inline-flex self-start overflow-hidden rounded-md border border-base-300 bg-base-100">
             <button
               role="tab"
               type="button"
-              class="btn btn-xs join-item"
-              :class="nearMeTab === 'routes' ? 'btn-primary' : 'btn-ghost'"
+              class="inline-flex min-h-8 items-center px-3 text-xs font-medium transition-colors"
+              :class="nearMeTab === 'routes'
+                ? 'bg-primary text-primary-content'
+                : 'bg-transparent text-base-content hover:bg-base-200'"
               @click="userStore.setNearMeTab('routes')"
             >
               Routes · {{ nearbyCount }}
@@ -154,8 +125,10 @@ function routeBadgeStyle(color: string | undefined) {
             <button
               role="tab"
               type="button"
-              class="btn btn-xs join-item"
-              :class="nearMeTab === 'stops' ? 'btn-info' : 'btn-ghost'"
+              class="inline-flex min-h-8 items-center border-l border-base-300 px-3 text-xs font-medium transition-colors"
+              :class="nearMeTab === 'stops'
+                ? 'bg-info text-info-content'
+                : 'bg-transparent text-base-content hover:bg-base-200'"
               @click="userStore.setNearMeTab('stops')"
             >
               Stops · {{ nearbyStopsCount }}
@@ -165,25 +138,25 @@ function routeBadgeStyle(color: string | undefined) {
 
         <div v-if="nearMeTab === 'routes'" class="space-y-1.5">
           <div v-if="nearbyRoutesQuery.isLoading.value" class="space-y-1.5">
-            <div class="skeleton h-12 w-full" />
-            <div class="skeleton h-12 w-full" />
-            <div class="skeleton h-12 w-2/3" />
+            <div class="h-12 w-full animate-pulse rounded-md bg-base-content/10" />
+            <div class="h-12 w-full animate-pulse rounded-md bg-base-content/10" />
+            <div class="h-12 w-2/3 animate-pulse rounded-md bg-base-content/10" />
           </div>
 
-          <div v-else-if="!userLocation" class="alert alert-soft alert-info text-xs">
+          <div v-else-if="!userLocation" class="rounded-[0.75rem] border border-transparent bg-info/15 px-3 py-2 text-xs text-info">
             <span>Allow location access to show routes near you.</span>
           </div>
 
-          <div v-else-if="(nearbyRoutesQuery.data.value?.length ?? 0) === 0" class="alert alert-soft text-xs">
+          <div v-else-if="(nearbyRoutesQuery.data.value?.length ?? 0) === 0" class="rounded-[0.75rem] border border-transparent bg-base-200/85 px-3 py-2 text-xs text-base-content/85">
             <span>No route stops found within 1.2 km.</span>
           </div>
 
-          <div v-else class="max-h-[42dvh] space-y-1.5 overflow-y-auto pr-0.5">
+          <div v-else class="max-h-[34dvh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-[42dvh]">
             <button
               v-for="item in nearbyRoutesQuery.data.value"
               :key="item.route.id"
               type="button"
-              class="w-full rounded-field border p-1.5 text-left transition-all"
+              class="w-full rounded-field border p-2 text-left transition-all"
               :class="selectedRouteId === item.route.id
                 ? 'border-primary bg-primary/10 shadow-sm'
                 : 'border-base-300 bg-base-100 hover:border-primary/40 hover:bg-base-100'"
@@ -192,12 +165,12 @@ function routeBadgeStyle(color: string | undefined) {
               <div class="flex items-center justify-between gap-2">
                 <div class="min-w-0">
                   <div class="flex items-center gap-1.5">
-                    <span class="badge badge-xs border-0 font-bold" :style="routeBadgeStyle(item.route.color)">{{ item.route.shortName }}</span>
-                    <span class="truncate text-[10px] text-base-content/70">{{ item.nearestStop.name }}</span>
+                    <span class="inline-flex items-center rounded-full border-0 px-1.5 py-0.5 text-2xs font-bold" :style="routeBadgeStyle(item.route.color)">{{ item.route.shortName }}</span>
+                    <span class="truncate text-xs text-base-content/70">{{ item.nearestStop.name }}</span>
                   </div>
                 </div>
 
-                <span class="badge badge-outline badge-primary badge-xs font-medium">
+                <span class="inline-flex items-center rounded-full border border-primary/40 px-2 py-0.5 text-xs font-medium text-primary">
                   {{ metersLabel(item.distanceMeters) }}
                 </span>
               </div>
@@ -205,7 +178,11 @@ function routeBadgeStyle(color: string | undefined) {
           </div>
 
           <div class="flex justify-end pt-0.5">
-            <button type="button" class="btn btn-xs btn-outline btn-primary" @click="openAllRoutesPage">
+            <button
+              type="button"
+              class="inline-flex min-h-8 items-center rounded-md border border-primary/55 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              @click="openAllRoutesPage"
+            >
               Browse all routes
             </button>
           </div>
@@ -213,28 +190,28 @@ function routeBadgeStyle(color: string | undefined) {
 
         <div v-else class="space-y-1.5">
           <div v-if="nearbyStopsQuery.isLoading.value" class="space-y-1.5">
-            <div class="skeleton h-12 w-full" />
-            <div class="skeleton h-12 w-full" />
-            <div class="skeleton h-12 w-2/3" />
+            <div class="h-12 w-full animate-pulse rounded-md bg-base-content/10" />
+            <div class="h-12 w-full animate-pulse rounded-md bg-base-content/10" />
+            <div class="h-12 w-2/3 animate-pulse rounded-md bg-base-content/10" />
           </div>
 
-          <div v-else-if="!userLocation" class="alert alert-soft alert-info text-xs">
+          <div v-else-if="!userLocation" class="rounded-[0.75rem] border border-transparent bg-info/15 px-3 py-2 text-xs text-info">
             <span>Allow location access to show nearby stops.</span>
           </div>
 
-          <div v-else-if="nearbyStopsQuery.error.value" class="alert alert-soft alert-error text-xs">
+          <div v-else-if="nearbyStopsQuery.error.value" class="rounded-[0.75rem] border border-transparent bg-error/15 px-3 py-2 text-xs text-error">
             <span>Couldn’t load nearby stops right now.</span>
           </div>
 
-          <div v-else-if="(nearbyStopsQuery.data.value?.length ?? 0) === 0" class="alert alert-soft text-xs">
+          <div v-else-if="(nearbyStopsQuery.data.value?.length ?? 0) === 0" class="rounded-[0.75rem] border border-transparent bg-base-200/85 px-3 py-2 text-xs text-base-content/85">
             <span>No stops found within 1.2 km.</span>
           </div>
 
-          <div v-else class="max-h-[42dvh] space-y-1.5 overflow-y-auto pr-0.5">
+          <div v-else class="max-h-[34dvh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-[42dvh]">
             <div
               v-for="item in nearbyStopsQuery.data.value"
               :key="item.stop.id"
-              class="w-full rounded-field border border-base-300 bg-base-100 p-1.5 transition-all hover:border-info/40"
+              class="w-full rounded-field border border-base-300 bg-base-100 p-2 transition-all hover:border-info/40"
             >
               <div class="flex items-center justify-between gap-2">
                 <button
@@ -243,31 +220,31 @@ function routeBadgeStyle(color: string | undefined) {
                   :aria-label="`Open ${item.stop.name} on map`"
                   @click="openNearbyStop(item)"
                 >
-                  <p class="truncate text-[11px] font-semibold text-base-content">
+                  <p class="truncate text-xs font-semibold text-base-content">
                     {{ item.stop.name }}
                   </p>
                   <div class="mt-0.5 flex items-center gap-1">
                     <span
                       v-for="routeId in item.routeIds.slice(0, 2)"
                       :key="`${item.stop.id}-${routeId}`"
-                      class="badge badge-xs badge-primary badge-soft"
+                      class="inline-flex items-center rounded-full border border-primary/35 bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary"
                     >
                       {{ routeId }}
                     </span>
-                    <span v-if="item.routeIds.length > 2" class="text-[10px] text-base-content/60">
+                    <span v-if="item.routeIds.length > 2" class="text-2xs text-base-content/60">
                       +{{ item.routeIds.length - 2 }}
                     </span>
                   </div>
                 </button>
 
                 <div class="shrink-0 text-right">
-                  <span class="badge badge-outline badge-info badge-xs font-medium">
+                  <span class="inline-flex items-center rounded-full border border-info/40 px-2 py-0.5 text-xs font-medium text-info">
                     {{ metersLabel(item.distanceMeters) }}
                   </span>
                   <div class="mt-0.5 flex items-center justify-end gap-1">
                     <button
                       type="button"
-                      class="btn btn-xs btn-info btn-soft btn-square"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-info/15 text-info transition-colors hover:bg-info/22"
                       :aria-label="`Open ${item.stop.name} on map`"
                       @click="openNearbyStop(item)"
                     >
@@ -297,31 +274,31 @@ function routeBadgeStyle(color: string | undefined) {
       </div>
     </div>
 
-    <div class="stats stats-vertical border border-base-300 bg-base-200 sm:stats-horizontal w-full">
-      <div class="stat py-3">
-        <div class="stat-title text-xs">
+    <div class="grid w-full grid-cols-1 rounded-[0.75rem] border border-base-300 bg-base-200 sm:grid-cols-2">
+      <div class="px-4 py-3">
+        <div class="text-xs uppercase tracking-wide text-base-content/65">
           Live vehicles
         </div>
-        <div class="stat-value text-2xl">
+        <div class="text-2xl font-semibold">
           {{ vehiclesQuery.data.value?.length ?? 0 }}
         </div>
-        <div class="stat-desc">
+        <div class="text-xs text-base-content/70">
           Across all routes
         </div>
       </div>
-      <div class="stat py-3">
-        <div class="stat-title text-xs">
+      <div class="border-t border-base-300 px-4 py-3 sm:border-t-0 sm:border-l">
+        <div class="text-xs uppercase tracking-wide text-base-content/65">
           Data state
         </div>
-        <div class="stat-value text-lg">
-          <span v-if="showVehiclesLoading" class="badge badge-ghost gap-1">
-            <span class="loading loading-dots loading-xs" />
+        <div class="text-lg font-semibold">
+          <span v-if="showVehiclesLoading" class="inline-flex items-center gap-1 rounded-full border border-transparent bg-base-content/10 px-2 py-0.5 text-xs font-medium text-base-content/85">
+            <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-current" />
             loading
           </span>
-          <span v-else-if="vehiclesQuery.error.value" class="badge badge-error">error</span>
-          <span v-else class="badge badge-success badge-soft">live</span>
+          <span v-else-if="vehiclesQuery.error.value" class="inline-flex items-center rounded-full border border-error/35 bg-error/15 px-2 py-0.5 text-xs font-medium text-error">error</span>
+          <span v-else class="inline-flex items-center rounded-full border border-success/35 bg-success/15 px-2 py-0.5 text-xs font-medium text-success">live</span>
         </div>
-        <div class="stat-desc">
+        <div class="text-xs text-base-content/70">
           Updates every 5s
         </div>
       </div>

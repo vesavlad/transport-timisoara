@@ -29,13 +29,13 @@ const rowClass = computed(() => {
 const etaBadgeClass = computed(() => {
   const minutes = props.displayMinutes
   if (minutes == null)
-    return 'badge-ghost'
+    return 'border-transparent bg-base-content/10 text-base-content/65'
   if (minutes === 'due')
-    return 'badge-success'
+    return 'border-success/60 bg-success/15 text-success'
   const value = Number.parseInt(minutes, 10)
   if (Number.isFinite(value) && value <= 5)
-    return 'badge-warning'
-  return 'badge-neutral'
+    return 'border-warning/60 bg-warning/15 text-warning'
+  return 'border-neutral/60 bg-neutral/30 text-neutral-content'
 })
 </script>
 
@@ -43,7 +43,7 @@ const etaBadgeClass = computed(() => {
   <div class="relative">
     <button
       type="button"
-      class="w-full rounded-box border px-3 py-1.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      class="w-full rounded-xl border px-3 py-1.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       :class="rowClass"
       :data-stop-id="stop.id"
       @click="$emit('open', stop.id)"
@@ -54,7 +54,7 @@ const etaBadgeClass = computed(() => {
             {{ stop.name }}
           </span>
         </div>
-        <span class="badge shrink-0 badge-xs" :class="etaBadgeClass">
+        <span class="inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[11px] font-medium" :class="etaBadgeClass">
           {{ displayMinutes ?? '—' }}
         </span>
       </div>

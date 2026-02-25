@@ -119,6 +119,7 @@ declare global {
   const until: typeof import('@vueuse/core').until
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
   const useAnimate: typeof import('@vueuse/core').useAnimate
+  const useAppMediaQuery: typeof import('./composables/useMediaQuery').useAppMediaQuery
   const useArrayDifference: typeof import('@vueuse/core').useArrayDifference
   const useArrayEvery: typeof import('@vueuse/core').useArrayEvery
   const useArrayFilter: typeof import('@vueuse/core').useArrayFilter
@@ -201,9 +202,10 @@ declare global {
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
   const useMagicKeys: typeof import('@vueuse/core').useMagicKeys
   const useManualRefHistory: typeof import('@vueuse/core').useManualRefHistory
+  const useMapScreenState: typeof import('./composables/useMapScreenState').useMapScreenState
   const useMapStore: typeof import('./stores/mapStore').useMapStore
   const useMediaControls: typeof import('@vueuse/core').useMediaControls
-  const useMediaQuery: typeof import('./composables/useMediaQuery').useMediaQuery
+  const useMediaQuery: typeof import('@vueuse/core').useMediaQuery
   const useMemoize: typeof import('@vueuse/core').useMemoize
   const useMemory: typeof import('@vueuse/core').useMemory
   const useMinimumLoading: typeof import('./composables/useMinimumLoading').useMinimumLoading
@@ -317,6 +319,9 @@ declare global {
   // @ts-ignore
   export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
+  // @ts-ignore
+  export type { PanelPage } from './composables/useMapScreenState'
+  import('./composables/useMapScreenState')
   // @ts-ignore
   export type { LayerId, RouteDirection } from './stores/mapStore'
   import('./stores/mapStore')
@@ -440,6 +445,7 @@ declare module 'vue' {
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>
     readonly useAnimate: UnwrapRef<typeof import('@vueuse/core')['useAnimate']>
+    readonly useAppMediaQuery: UnwrapRef<typeof import('./composables/useMediaQuery')['useAppMediaQuery']>
     readonly useArrayDifference: UnwrapRef<typeof import('@vueuse/core')['useArrayDifference']>
     readonly useArrayEvery: UnwrapRef<typeof import('@vueuse/core')['useArrayEvery']>
     readonly useArrayFilter: UnwrapRef<typeof import('@vueuse/core')['useArrayFilter']>
@@ -522,9 +528,10 @@ declare module 'vue' {
     readonly useLocalStorage: UnwrapRef<typeof import('@vueuse/core')['useLocalStorage']>
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
+    readonly useMapScreenState: UnwrapRef<typeof import('./composables/useMapScreenState')['useMapScreenState']>
     readonly useMapStore: UnwrapRef<typeof import('./stores/mapStore')['useMapStore']>
     readonly useMediaControls: UnwrapRef<typeof import('@vueuse/core')['useMediaControls']>
-    readonly useMediaQuery: UnwrapRef<typeof import('./composables/useMediaQuery')['useMediaQuery']>
+    readonly useMediaQuery: UnwrapRef<typeof import('@vueuse/core')['useMediaQuery']>
     readonly useMemoize: UnwrapRef<typeof import('@vueuse/core')['useMemoize']>
     readonly useMemory: UnwrapRef<typeof import('@vueuse/core')['useMemory']>
     readonly useMinimumLoading: UnwrapRef<typeof import('./composables/useMinimumLoading')['useMinimumLoading']>
