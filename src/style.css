@@ -1,82 +1,87 @@
 @import 'tailwindcss';
-@plugin 'daisyui' {
-  themes:
-    cityradar --default,
-    cityradar-dark --prefersdark;
+/* choose one of the following */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import 'flowbite/src/themes/default';
+@plugin 'flowbite/plugin';
+@source '../node_modules/flowbite';
+
+@theme {
+  --color-base-100: var(--cr-base-100);
+  --color-base-200: var(--cr-base-200);
+  --color-base-300: var(--cr-base-300);
+  --color-base-content: var(--cr-base-content);
+  --color-primary: var(--cr-primary);
+  --color-primary-content: var(--cr-primary-content);
+  --color-secondary: var(--cr-secondary);
+  --color-secondary-content: var(--cr-secondary-content);
+  --color-accent: var(--cr-accent);
+  --color-accent-content: var(--cr-accent-content);
+  --color-neutral: var(--cr-neutral);
+  --color-neutral-content: var(--cr-neutral-content);
+  --color-neutral-quaternary: var(--cr-neutral-quaternary);
+  --color-buffer: var(--cr-buffer);
+  --color-info: var(--cr-info);
+  --color-info-content: var(--cr-info-content);
+  --color-success: var(--cr-success);
+  --color-success-content: var(--cr-success-content);
+  --color-warning: var(--cr-warning);
+  --color-warning-content: var(--cr-warning-content);
+  --color-error: var(--cr-error);
+  --color-error-content: var(--cr-error-content);
 }
 
-@plugin 'daisyui/theme' {
-  name: 'cityradar';
-  default: true;
-  prefersdark: false;
+:root,
+html[data-theme='cityradar'] {
   color-scheme: light;
-
-  --color-base-100: #fffdf5;
-  --color-base-200: #f8f4e6;
-  --color-base-300: #eee6cf;
-  --color-base-content: #171717;
-  --color-primary: #eab308;
-  --color-primary-content: #171717;
-  --color-secondary: #111827;
-  --color-secondary-content: #f9fafb;
-  --color-accent: #facc15;
-  --color-accent-content: #171717;
-  --color-neutral: #1f2937;
-  --color-neutral-content: #f9fafb;
-  --color-info: #0369a1;
-  --color-info-content: #f0f9ff;
-  --color-success: #15803d;
-  --color-success-content: #f0fdf4;
-  --color-warning: #b45309;
-  --color-warning-content: #fffbeb;
-  --color-error: #b91c1c;
-  --color-error-content: #fef2f2;
-
-  --radius-selector: 1rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.75rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
+  --cr-base-100: #fffdf5;
+  --cr-base-200: #f8f4e6;
+  --cr-base-300: #eee6cf;
+  --cr-base-content: #171717;
+  --cr-primary: #eab308;
+  --cr-primary-content: #171717;
+  --cr-secondary: #111827;
+  --cr-secondary-content: #f9fafb;
+  --cr-accent: #facc15;
+  --cr-accent-content: #171717;
+  --cr-neutral: #1f2937;
+  --cr-neutral-content: #f9fafb;
+  --cr-neutral-quaternary: #a1a1aa;
+  --cr-buffer: #fffdf5;
+  --cr-info: #0369a1;
+  --cr-info-content: #f0f9ff;
+  --cr-success: #15803d;
+  --cr-success-content: #f0fdf4;
+  --cr-warning: #b45309;
+  --cr-warning-content: #fffbeb;
+  --cr-error: #b91c1c;
+  --cr-error-content: #fef2f2;
 }
 
-@plugin 'daisyui/theme' {
-  name: 'cityradar-dark';
-  default: false;
-  prefersdark: true;
+html[data-theme='cityradar-dark'] {
   color-scheme: dark;
-
-  --color-base-100: #0b0b0b;
-  --color-base-200: #131313;
-  --color-base-300: #202020;
-  --color-base-content: #f5f5f5;
-  --color-primary: #facc15;
-  --color-primary-content: #111827;
-  --color-secondary: #e5e7eb;
-  --color-secondary-content: #111827;
-  --color-accent: #fde047;
-  --color-accent-content: #111827;
-  --color-neutral: #27272a;
-  --color-neutral-content: #f4f4f5;
-  --color-info: #38bdf8;
-  --color-info-content: #082f49;
-  --color-success: #4ade80;
-  --color-success-content: #052e16;
-  --color-warning: #f59e0b;
-  --color-warning-content: #451a03;
-  --color-error: #f87171;
-  --color-error-content: #450a0a;
-
-  --radius-selector: 1rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.75rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
+  --cr-base-100: #0b0b0b;
+  --cr-base-200: #131313;
+  --cr-base-300: #202020;
+  --cr-base-content: #f5f5f5;
+  --cr-primary: #facc15;
+  --cr-primary-content: #111827;
+  --cr-secondary: #e5e7eb;
+  --cr-secondary-content: #111827;
+  --cr-accent: #fde047;
+  --cr-accent-content: #111827;
+  --cr-neutral: #27272a;
+  --cr-neutral-content: #f4f4f5;
+  --cr-neutral-quaternary: #71717a;
+  --cr-buffer: #0b0b0b;
+  --cr-info: #38bdf8;
+  --cr-info-content: #082f49;
+  --cr-success: #4ade80;
+  --cr-success-content: #052e16;
+  --cr-warning: #f59e0b;
+  --cr-warning-content: #451a03;
+  --cr-error: #f87171;
+  --cr-error-content: #450a0a;
 }
 
 /* Typography */

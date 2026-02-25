@@ -9,7 +9,7 @@ Cross-platform public transportation map (desktop + mobile via PWA) that visuali
 ## What’s in the box
 
 - Vite + Vue 3 + TypeScript
-- Tailwind CSS + daisyUI for UI
+- Tailwind CSS + Flowbite (Vue setup) for UI
 - MapLibre GL JS (OpenStreetMap-based map)
 - Pinia for UI/map state (selected route, layer toggles)
 - TanStack Vue Query for caching + live polling
@@ -34,13 +34,13 @@ Live vehicle status/location can be pulled from **STPT GTFS vehicles** (`gtfs-ve
 
 - `npm run build`
 
-## Styling (daisyUI)
+## Styling (Flowbite + Tailwind v4)
 
-This project uses **daisyUI** on top of Tailwind CSS.
+This project uses **Flowbite** with Tailwind CSS v4.
 
-- Use semantic component classes like `btn`, `card`, `input`, `toggle`, `badge`.
-- Combine them with Tailwind utilities when needed.
-- Themes are enabled globally via `src/style.css` (`cityradar` as default and `cityradar-dark` for prefers-color-scheme).
+- Flowbite is configured in `src/style.css` via `@plugin 'flowbite/plugin'` and `@source '../node_modules/flowbite'`.
+- The app theme is still controlled globally with `data-theme` (`cityradar` and `cityradar-dark`).
+- Existing semantic classes (`btn`, `card`, `badge`, etc.) are preserved through a local compatibility layer so screens continue to render while we progressively move UI pieces to native Flowbite/Vue components.
 
 ## Environment variables
 

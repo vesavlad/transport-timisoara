@@ -3,14 +3,14 @@ import { computed, ref, watch } from 'vue'
 
 import { useMapStore } from '../stores/mapStore'
 import { isDark } from './dark'
-import { useMediaQuery } from './useMediaQuery'
+import { useAppMediaQuery } from './useMediaQuery'
 
 export type PanelPage = 'home' | 'routes' | 'route' | 'stop'
 type MobileViewportMode = 'map' | 'split' | 'panel'
 
 const MOBILE_SPLIT_PANEL_DVH = 70
 
-export function useMapScreenState(forcedPage: PanelPage) {
+export function useMapScreenState() {
   const store = useMapStore()
   const route = useRoute()
   const router = useRouter()
@@ -39,8 +39,8 @@ export function useMapScreenState(forcedPage: PanelPage) {
   })
 
   const mobileViewportMode = ref<MobileViewportMode>('panel')
-  const isMobile = useMediaQuery('(max-width: 767px)')
-  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const isMobile = useAppMediaQuery('(max-width: 767px)')
+  const prefersReducedMotion = useAppMediaQuery('(prefers-reduced-motion: reduce)')
 
   const panelTransitionClass = computed(() => {
     if (!isMobile.value)
@@ -122,7 +122,6 @@ export function useMapScreenState(forcedPage: PanelPage) {
   )
 
   return {
-    forcedPage,
     isDark,
     mobileViewportMode,
     showFloatingThemeToggle,
