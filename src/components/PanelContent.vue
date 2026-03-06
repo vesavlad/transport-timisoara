@@ -2,9 +2,9 @@
 import { storeToRefs } from 'pinia'
 
 import { computed } from 'vue'
-import { useMapStore } from '../stores/mapStore'
-import PanelPageSwitch from './panel/PanelPageSwitch.vue'
-import PanelToolbar from './panel/PanelToolbar.vue'
+import { useMapStore } from '~/stores/mapStore'
+import PanelPageSwitch from './PanelPageSwitch.vue'
+import PanelToolbar from './PanelToolbar.vue'
 
 type PanelPage = 'home' | 'routes' | 'route' | 'stop'
 

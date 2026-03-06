@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { isDark } from '../composables/dark'
+import { isDark } from '~/composables/dark'
 
 const props = defineProps<{
   variant?: 'default' | 'fab-action' | 'dial-action'

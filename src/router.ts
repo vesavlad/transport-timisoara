@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import MapPanelScreenShell from './components/MapPanelScreenShell.vue'
 import AboutScreen from './screens/AboutScreen.vue'
+import MapPanelScreenShell from './screens/MapPanelScreenShell.vue'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

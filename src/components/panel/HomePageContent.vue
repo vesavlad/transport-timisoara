@@ -3,10 +3,10 @@ import { useGeolocation } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { useMinimumLoading } from '../../composables/useMinimumLoading'
-import { useNearbyRoutes, useNearbyStops, useVehicles } from '../../data/hooks'
-import { useMapStore } from '../../stores/mapStore'
-import { useUserStore } from '../../stores/userStore'
+import { useMinimumLoading } from '~/composables/useMinimumLoading'
+import { useNearbyRoutes, useNearbyStops, useVehicles } from '~/data/hooks'
+import { useMapStore } from '~/stores/mapStore'
+import { useUserStore } from '~/stores/userStore'
 
 const store = useMapStore()
 const { selectedRouteId } = storeToRefs(store)
@@ -106,7 +106,7 @@ function routeBadgeStyle(color: string | undefined) {
               Near me
             </h2>
             <p class="text-[11px] text-base-content/70">
-              Nearby routes and stops (1.2 km).
+              routes and stops (1.2 km).
             </p>
           </div>
 
@@ -227,7 +227,7 @@ function routeBadgeStyle(color: string | undefined) {
                     <span
                       v-for="routeId in item.routeIds.slice(0, 2)"
                       :key="`${item.stop.id}-${routeId}`"
-                      class="inline-flex items-center rounded-full border border-primary/35 bg-primary/15 px-1.5 py-0.5 text-2xs font-medium text-primary"
+                      class="inline-flex items-center rounded border border-primary/35 bg-primary/15 px-1.5 py-1.5 text-2xs font-medium text-primary"
                     >
                       {{ routeId }}
                     </span>
@@ -241,27 +241,6 @@ function routeBadgeStyle(color: string | undefined) {
                   <span class="inline-flex items-center rounded-full border border-info/40 px-2 py-0.5 text-xs font-medium text-info">
                     {{ metersLabel(item.distanceMeters) }}
                   </span>
-                  <div class="mt-0.5 flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-info/15 text-info transition-colors hover:bg-info/22"
-                      :aria-label="`Open ${item.stop.name} on map`"
-                      @click="openNearbyStop(item)"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        class="h-3 w-3"
-                        aria-hidden="true"
-                      >
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7-7.5 11.5-7.5 11.5S4.5 17.5 4.5 10.5a7.5 7.5 0 1115 0z" />
-                      </svg>
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

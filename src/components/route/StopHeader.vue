@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Stop } from '../../data/types'
+import type { Stop } from '~/data/types'
 import { computed } from 'vue'
 
 const props = defineProps<{

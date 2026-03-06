@@ -2,12 +2,12 @@
 import type { PanelPage } from '../composables/useMapScreenState'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
+import MapView from '../components/MapView.vue'
+import MobileViewportDock from '../components/MobileViewportDock.vue'
+import Panel from '../components/Panel.vue'
+import PanelContent from '../components/PanelContent.vue'
+import ThemeToggleButton from '../components/ThemeToggleButton.vue'
 import { useMapScreenState } from '../composables/useMapScreenState'
-import MapView from './MapView.vue'
-import MobileViewportDock from './MobileViewportDock.vue'
-import Panel from './Panel.vue'
-import PanelContent from './PanelContent.vue'
-import ThemeToggleButton from './ThemeToggleButton.vue'
 
 const props = defineProps<{
   forcedPage: PanelPage

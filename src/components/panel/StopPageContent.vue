@@ -2,9 +2,9 @@
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { useMinimumLoading } from '../../composables/useMinimumLoading'
-import { useRoutes, useStopDepartures, useStops } from '../../data/hooks'
-import { useMapStore } from '../../stores/mapStore'
+import { useMinimumLoading } from '~/composables/useMinimumLoading'
+import { useRoutes, useStopDepartures, useStops } from '~/data/hooks'
+import { useMapStore } from '~/stores/mapStore'
 import StatusState from '../StatusState.vue'
 
 const store = useMapStore()

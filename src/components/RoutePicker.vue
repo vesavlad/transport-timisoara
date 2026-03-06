@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Route } from '../data/types'
+import type { Route } from '~/data/types'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { useRoutes } from '../data/hooks'
-import { useMapStore } from '../stores/mapStore'
+import { useRoutes } from '~/data/hooks'
+import { useMapStore } from '~/stores/mapStore'
 import StatusState from './StatusState.vue'
 
 const store = useMapStore()

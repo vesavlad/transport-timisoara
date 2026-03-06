@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Stop } from '../../data/types'
+import type { Stop } from '~/data/types'
 
 import { computed } from 'vue'
 
@@ -55,7 +55,7 @@ const etaBadgeClass = computed(() => {
           </span>
         </div>
         <span class="inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[11px] font-medium" :class="etaBadgeClass">
-          {{ displayMinutes ?? '—' }}
+          {{ displayMinutes ?? '--:--' }}
         </span>
       </div>
     </button>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const _props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   title: string
   message?: string
   variant?: 'error' | 'empty'

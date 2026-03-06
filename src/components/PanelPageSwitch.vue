@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import HomePageContent from './HomePageContent.vue'
-import RoutePageContent from './RoutePageContent.vue'
-import RoutesPageContent from './RoutesPageContent.vue'
-import StopPageContent from './StopPageContent.vue'
+import HomePageContent from './panel/HomePageContent.vue'
+import RoutePageContent from './panel/RoutePageContent.vue'
+import RoutesPageContent from './panel/RoutesPageContent.vue'
+import StopPageContent from './panel/StopPageContent.vue'
 
 type PanelPage = 'home' | 'routes' | 'route' | 'stop'
 

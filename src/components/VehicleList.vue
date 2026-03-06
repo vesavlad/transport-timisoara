@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Vehicle } from '../data/types'
+import type { Vehicle } from '~/data/types'
 import { computed } from 'vue'
 
 import StatusState from './StatusState.vue'
